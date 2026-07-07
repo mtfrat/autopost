@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+google-genai
+supabase
+replicate
+pydantic-settings
+apscheduler
+httpx
