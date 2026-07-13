@@ -47,7 +47,7 @@ class ManualGenerateRequest(BaseModel):
     tone_modifier: Optional[str] = None
     skip_image: Optional[bool] = False
     visual_format: Optional[Literal['text_only', 'single_image', 'carousel']] = 'single_image'
-    image_model: Optional[str] = 'black-forest-labs/flux-schnell'
+    image_model: Optional[str] = 'black-forest-labs/flux-2-pro'
 
 # User profiles schemas
 class UserCreate(BaseModel):
@@ -72,7 +72,7 @@ class TemplateCreate(BaseModel):
     platforms: list[Literal['linkedin', 'x', 'instagram']]
     skip_image: bool = False
     visual_format: Optional[Literal['text_only', 'single_image', 'carousel']] = 'single_image'
-    image_model: Optional[str] = 'black-forest-labs/flux-schnell'
+    image_model: Optional[str] = 'black-forest-labs/flux-2-pro'
 
 class TemplateResponse(BaseModel):
     id: UUID

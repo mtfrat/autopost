@@ -37,7 +37,14 @@ class MediaEngine:
             input_params = {
                 "prompt": enhanced_prompt
             }
-            if "flux" in model_id:
+            if "recraft" in model_id:
+                # Recraft V3/V4 models — excellent typography rendering for editorial B2B
+                input_params.update({
+                    "size": "1024x1024",
+                    "style": "digital_illustration"
+                })
+            elif "flux" in model_id:
+                # FLUX family (schnell, dev, 2-pro, 2-max) — production-grade image gen
                 input_params.update({
                     "aspect_ratio": "1:1",
                     "num_outputs": 1,
