@@ -21,6 +21,10 @@ class GeneratedPostOutput(BaseModel):
         default=None,
         description="If visual_format is hybrid, suggest a category for the image library: 'use_case_roi', 'technical_education', 'build_in_public', 'thought_leadership', 'cta', or 'general'."
     )
+    overlay_text: Optional[str] = Field(
+        default=None,
+        description="If visual_format is overlay, provide a very short, punchy title (max 5 words) in uppercase to be rendered on top of the image (e.g. 'SISTEMAS AGÉNTICOS')."
+    )
 
 class LLMEngine:
     def __init__(self):

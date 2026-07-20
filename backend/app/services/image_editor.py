@@ -1,4 +1,5 @@
 import io
+import os
 import requests
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from app.services.database import DatabaseService
@@ -6,7 +7,7 @@ import uuid
 
 class ImageEditorService:
     def __init__(self):
-        self.font_path = "app/assets/fonts/Geist-Bold.ttf"
+        self.font_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "fonts", "Geist-Bold.ttf")
         
     async def create_overlay_image(self, base_image_url: str, overlay_text: str) -> bytes:
         """Downloads base image, applies overlay text, returns modified image bytes"""
