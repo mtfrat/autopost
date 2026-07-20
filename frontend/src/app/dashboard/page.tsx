@@ -1464,6 +1464,25 @@ export default function Dashboard() {
         )}
 
         {/* ── BRAND LIBRARY VIEW ─────────────────────────────────────────── */}
+        {activeSection === 'brandLibrary' && (
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="px-6 py-5 border-b border-[#2a0e0e]/60 flex-shrink-0 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-bold text-[#f8f4f0] mb-0.5">Brand Library</h2>
+                <p className="text-xs text-[#6d2c2c]">
+                  Librería de imágenes pre-generadas de alta calidad para usar en modo "Híbrido".
+                </p>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 flex items-center justify-center">
+              <div className="text-center max-w-md">
+                <svg className="w-12 h-12 text-[#2a0e0e] mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                <h3 className="text-sm font-bold text-[#f8f4f0] mb-2">Librería Híbrida Activa</h3>
+                <p className="text-xs text-[#c2b9af] leading-relaxed mb-4">
+                  El sistema ahora soporta selección de imágenes automáticas. Para agregar nuevas imágenes, generalas manualmente y cargalas en la tabla <code>brand_image_library</code> de Supabase.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
