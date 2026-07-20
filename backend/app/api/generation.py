@@ -234,8 +234,8 @@ async def generate_overlay(request: OverlayGenerateRequest):
         
         for platform in request.platforms:
             print(f"[API] Generating overlay post for {platform}...")
-            out = await llm.generate_post(
-                topic=request.topic,
+            out = await llm.generate_b2b_post(
+                topic_context=request.topic,
                 platform=platform,
                 brand_voice=brand_voice,
                 visual_format="overlay",
