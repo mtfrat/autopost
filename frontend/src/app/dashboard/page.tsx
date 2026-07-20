@@ -710,7 +710,7 @@ export default function Dashboard() {
     
     const companyId = activeUser?.company_id || DEFAULT_COMPANY_ID;
     try {
-      const res = await fetch(`${BACKEND_URL}/api/v1/generation/overlay`, {
+      const res = await fetch(`${BACKEND_URL}/api/v1/generate/overlay`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           company_id: companyId, 
