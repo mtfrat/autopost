@@ -46,8 +46,8 @@ class ManualGenerateRequest(BaseModel):
     visual_style_guidelines: Optional[str] = None
     tone_modifier: Optional[str] = None
     skip_image: Optional[bool] = False
-    visual_format: Optional[Literal['text_only', 'single_image', 'carousel']] = 'single_image'
-    image_model: Optional[str] = 'black-forest-labs/flux-2-pro'
+    visual_format: Optional[Literal['text_only', 'single_image', 'carousel', 'hybrid']] = 'single_image'
+    image_model: Optional[str] = 'black-forest-labs/flux-schnell'
 
 # User profiles schemas
 class UserCreate(BaseModel):
@@ -71,8 +71,8 @@ class TemplateCreate(BaseModel):
     tone_modifier: Optional[str] = None
     platforms: list[Literal['linkedin', 'x', 'instagram']]
     skip_image: bool = False
-    visual_format: Optional[Literal['text_only', 'single_image', 'carousel']] = 'single_image'
-    image_model: Optional[str] = 'black-forest-labs/flux-2-pro'
+    visual_format: Optional[Literal['text_only', 'single_image', 'carousel', 'hybrid']] = 'single_image'
+    image_model: Optional[str] = 'black-forest-labs/flux-schnell'
 
 class TemplateResponse(BaseModel):
     id: UUID
@@ -86,3 +86,34 @@ class TemplateResponse(BaseModel):
     visual_format: str
     image_model: str
     created_at: datetime
+
+# Brand image library schemas
+class BrandImageCreate(BaseModel):
+    company_id: str
+    image_url: str
+    category: Literal['use_case_roi', 'technical_education', 'build_in_public', 'thought_leadership', 'cta', 'general']
+    title: str
+    description: Optional[str] = None
+    tags: Optional[list[str]] = None
+    prompt_used: Optional[str] = None
+    aspect_ratio: str = '1:1'
+
+class BrandImageResponse(BaseModel):
+    id: UUID
+    company_id: UUID
+    image_url: str
+    category: str
+    title: str
+    description: Optional[str] = None
+    tags: Optional[list[str]] = None
+    prompt_used: Optional[str] = None
+    aspect_ratio: str
+    is_active: bool
+    created_at: datetime
+
+class OverlayGenerateRequest(BaseModel):
+    company_id: str
+    topic: str
+    base_image_url: str
+    platforms: list[Literal['linkedin', 'x', 'instagram']] = ['linkedin']
+    tone_modifier: Optional[str] = None

@@ -18,7 +18,7 @@ class MediaEngine:
         prompt: str, 
         brand_colors: Optional[str] = None, 
         visual_style_guidelines: Optional[str] = None,
-        model_name: str = "black-forest-labs/flux-schnell"
+        model_name: str = "recraft-ai/recraft-v3"
     ) -> str:
         self._check_token()
         

@@ -32,8 +32,8 @@ class DatabaseService:
                 "name": "Puna Tech",
                 "industry_vertical": "AI Agents & B2B Automation",
                 "brand_voice_guidelines": "Tono B2B profesional, estructurado, enfocado en el ahorro de horas operativas y ROI de tiempo. Máximo 2 emojis.",
-                "brand_colors": "Azul cobalto, cian neón y gris oscuro sobre fondo negro",
-                "visual_style_guidelines": "Ilustración 3D isométrica minimalista, estética tecnológica y limpia"
+                "brand_colors": "Terracota cálido (#af4c24), caoba profundo (#6d2c2c) y fondo crema suave (#f8f4f0)",
+                "visual_style_guidelines": "Estética cálida y orgánica B2B premium, ilustración 3D minimalista con texturas mate de terracota y cerámica sobre fondo crema limpio"
             }
         raise ValueError(f"Company with ID {company_id} not found in database.")
 
@@ -171,3 +171,49 @@ class DatabaseService:
         )
         return response.data or []
 
+    # ── Brand Image Library ──────────────────────────────────────────────
+
+    async def get_brand_images(self, company_id: str, category: Optional[str] = None) -> List[Dict[str, Any]]:
+        self._check_client()
+        query = self.client.table("brand_image_library").select("*").eq("company_id", company_id).eq("is_active", True).order("created_at", desc=True)
+        if category:
+            query = query.eq("category", category)
+        response = query.execute()
+        return response.data or []
+
+    async def create_brand_image(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        self._check_client()
+        response = self.client.table("brand_image_library").insert(data).execute()
+        if response.data and len(response.data) > 0:
+            return response.data[0]
+        raise RuntimeError("Failed to insert brand image into database.")
+
+    async def delete_brand_image(self, image_id: str) -> bool:
+        self._check_client()
+        self.client.table("brand_image_library").delete().eq("id", image_id).execute()
+        return True
+
+    async def get_random_brand_image(self, company_id: str, category: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        self._check_client()
+        query = self.client.table("brand_image_library").select("*").eq("company_id", company_id).eq("is_active", True)
+        if category:
+            query = query.eq("category", category)
+        response = query.execute()
+        if response.data and len(response.data) > 0:
+            import random
+            return random.choice(response.data)
+        return None
+
+    # ── Storage ─────────────────────────────────────────────────────────
+
+    async def upload_to_storage(self, bucket: str, filename: str, file_data: bytes, content_type: str = "image/png") -> str:
+        self._check_client()
+        # Upload the file
+        res = self.client.storage.from_(bucket).upload(
+            path=filename,
+            file=file_data,
+            file_options={"content-type": content_type, "upsert": "true"}
+        )
+        # Get public URL
+        public_url = self.client.storage.from_(bucket).get_public_url(filename)
+        return public_url

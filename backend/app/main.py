@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.generation import router as generation_router
 from app.api.profiles import router as profiles_router
+from app.api.brand_library import router as brand_library_router
 from app.scheduler.tasks import scheduler
 
 @asynccontextmanager
@@ -40,6 +41,7 @@ app.add_middleware(
 # Include routers
 app.include_router(generation_router)
 app.include_router(profiles_router)
+app.include_router(brand_library_router)
 
 @app.get("/health", tags=["Health"])
 async def health_check():

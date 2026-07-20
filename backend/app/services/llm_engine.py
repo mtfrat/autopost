@@ -3,6 +3,8 @@ from google.genai import types
 from pydantic import BaseModel, Field
 from app.core.config import settings
 from typing import Optional
+import asyncio
+import json
 
 class GeneratedPostOutput(BaseModel):
     post_content: str = Field(
@@ -14,6 +16,10 @@ class GeneratedPostOutput(BaseModel):
     carousel_prompts: Optional[list[str]] = Field(
         default=None,
         description="If visual_format is carousel, provide a list of detailed English image prompts for EACH slide in the carousel."
+    )
+    suggested_library_category: Optional[str] = Field(
+        default=None,
+        description="If visual_format is hybrid, suggest a category for the image library: 'use_case_roi', 'technical_education', 'build_in_public', 'thought_leadership', 'cta', or 'general'."
     )
 
 class LLMEngine:
@@ -45,22 +51,25 @@ class LLMEngine:
     ) -> GeneratedPostOutput:
         self._check_client()
 
-        # Build robust B2B system instruction
+        # Build robust B2B system instruction based on Puna Tech Digital Brand Manual
         system_instruction = (
-            "Act as the Lead AI Strategist for Puna Tech (puna-tech.com), an enterprise that builds custom AI agents "
-            "and autonomous workflows to automate complex back-office B2B processes. Your goal is to write "
-            "high-impact content that generates B2B demand by explaining how technology eliminates friction, "
-            "saves real working hours, and prevents human errors. Translating complex technical workflows into "
-            "clear business value is key.\n\n"
-            "Strict Guidelines:\n"
-            "1. NO generic marketing boilerplate or empty buzzwords (e.g., 'in the digital age', 'unleash', 'revolutionize'). "
-            "Start with direct, punchy hooks.\n"
+            "Act as the Lead AI Strategist for Puna Tech (puna-tech.com). "
+            "Puna Tech Value Proposition: Puna Tech develops custom AI agentic systems and B2B software solutions to automate complex end-to-end workflows, elevating operational efficiency and scalability.\n"
+            "Brand Archetype: The Technical Architect and Strategic Ally.\n"
+            "Your goal is to write high-impact content that generates B2B demand by explaining how technology eliminates friction, saves real working hours, and prevents human errors. Translating complex technical workflows into clear business value is key.\n\n"
+            "Strict Copywriting & Voice Guidelines:\n"
+            "1. NO generic marketing boilerplate or empty buzzwords (e.g., 'in the digital age', 'unleash', 'revolutionize'). Start with direct, punchy hooks.\n"
             "2. Limit emojis to a maximum of 2.\n"
-            "3. Focus on quantifying efficiency, reducing manual work, or highlighting B2B integration scenarios.\n"
-            "4. TYPOGRAPHY IN IMAGES: When designing the `image_prompt_idea` (especially for carousels or cover graphics), "
-            "always instruct the image generator to render a short, bold, 1-3 word text overlay in ENGLISH (e.g., 'AI AGENT', 'ERP FLOW', 'DATA ROI'). "
-            "Do NOT use Spanish words or words with accents (á, é, í, ó, ú, ñ) as image models will misspell them.\n"
-            "5. Follow the specific guidelines for the platform and format below."
+            "3. Content Pillars to rotate: 'Use Cases & ROI' (hard data/financial results), 'Technical Education' (explain complex concepts to CTOs/COOs), 'Build in Public' (share how you solved tech problems), 'Thought Leadership' (future of work, digital transformation).\n"
+            "4. Tone of Voice:\n"
+            "   - Institutional Voice (Puna Tech): Objective, assertive, dense in information. Short paragraphs, bullet points, one-line sentences for scannability. NO hyperbole. Every claim backed by data/metrics.\n"
+            "   - Founders Voice (Julio Lazcano / Ezequiel Estrada): Conversational, reflective, transparent, occasionally contrarian. First-person narrative. Strong hooks challenging the status quo. Focus on learnings/failures without sharing confidential financials.\n"
+            "   *Choose the most appropriate voice based on the requested platform and topic context.*\n\n"
+            "Visual & Image Generation Guidelines (for `image_prompt_idea` and `carousel_prompts`):\n"
+            "1. NO STOCK PHOTOS. ZERO generic images of people smiling at computers. Use ONLY clean icons, UI/workflow diagrams, or abstract B2B minimalist illustrations.\n"
+            "2. Colors: Enforce Puna Tech's official brand colors: Warm Terracotta (#af4c24) and Deep Mahogany (#6d2c2c or #2a0e0e) for key elements, on a clean, solid, soft cream (#f8f4f0) background. Absolutely NO dark mode, black backgrounds, neon glows, gradients, or saturated blue/purple colors.\n"
+            "3. Visual Style: Strictly specify a clean premium B2B aesthetic with minimalist 3D illustrations, claymorphism, or flat vector icons. Enforce matte textures of terracotta and ceramic.\n"
+            "4. NO TEXT OVERLAYS: The generated images MUST NOT contain any text, words, or typography. Provide purely visual concepts (e.g. diagrams, icons, abstract shapes)."
         )
 
         if tone_modifier:
@@ -70,25 +79,26 @@ class LLMEngine:
         platform_instructions = ""
         if platform == "linkedin":
             platform_instructions = (
-                "\nPlatform: LINKEDIN\n"
-                "- Write a professional, thought-provoking post.\n"
-                "- Use short paragraphs and clear line breaks for readability.\n"
-                "- Include an implicit or explicit Call to Action (CTA) focusing on calculating time ROI or booking a demo at Puna Tech.\n"
-                "- Focus on leadership, business metrics, and workflow orchestration."
+                "\nPlatform: LINKEDIN (B2B Sales Engine)\n"
+                "- Write long-form copy that interleaves unexpected statistics with lessons learned.\n"
+                "- Ideal for positioning the founders' authority to decision-makers.\n"
+                "- Use short paragraphs and clear line breaks. Focus on leadership and business metrics.\n"
+                "- Include an implicit or explicit Call to Action (CTA) focusing on calculating time ROI or booking a demo at Puna Tech."
             )
         elif platform == "x":
             platform_instructions = (
                 "\nPlatform: X (Twitter)\n"
-                "- Write a single punchy post or a very short, high-value technical insight.\n"
-                "- Must fit within 280 characters if possible, or represent a highly concise, stand-alone hot-take or value nugget.\n"
-                "- Be direct, analytical, and slightly informal but highly competent."
+                "- Format: Educational threads of 4 to 8 tweets (write as a single connected text, using line breaks or numbering to imply tweets).\n"
+                "- The first tweet/sentence MUST contain 80% of the hook's value.\n"
+                "- Be direct, analytical, and slightly informal but highly competent.\n"
+                "- Focus on being a concise, high-value technical insight or hot-take."
             )
         elif platform == "instagram":
             platform_instructions = (
                 "\nPlatform: INSTAGRAM\n"
-                "- Write structured slide copy for an educational, B2B-focused swipe carousel.\n"
-                "- Use clear delimiters like 'Slide 1:', 'Slide 2:', etc. for the slides.\n"
-                "- Ensure it is visually structured, easy to read, and educational (e.g., '3 manual tasks you can automate today')."
+                "- Copy: Direct to the point, complementing a striking image about technology, workflows, or 'behind the scenes' of the Puna Tech team.\n"
+                "- Visuals: High-contrast dark mode graphics acting as quick micro-learnings.\n"
+                "- Ensure it is visually structured and easy to read."
             )
 
         # Apply Visual Format overrides
@@ -111,6 +121,18 @@ class LLMEngine:
                 "- The content should be written as a cohesive single post (not slide-by-send).\n"
                 "- The text will be accompanied by a single prominent cover image."
             )
+        elif visual_format == "hybrid":
+            platform_instructions += (
+                "\nFormat Overrides: HYBRID (IMAGE LIBRARY)\n"
+                "- The content should be written as a cohesive single post.\n"
+                "- DO NOT describe any specific image prompt in `image_prompt_idea`. Instead, just provide a `suggested_library_category` to fetch a pre-generated image from our brand library."
+            )
+        elif visual_format == "overlay":
+            platform_instructions += (
+                "\nFormat Overrides: OVERLAY TEMPLATE\n"
+                "- The content should be written as a cohesive single post.\n"
+                "- Provide a very short, punchy uppercase title in `overlay_text` (max 5 words) that summarizes the core hook or topic. This text will be rendered directly on top of a pre-selected professional background image."
+            )
 
         prompt = (
             f"Brand Voice / Guidelines:\n{brand_voice}\n\n"
@@ -127,9 +149,6 @@ class LLMEngine:
         prompt += "Generate the post content and an English image description for a corporate aesthetic Flux prompt."
 
         # Robust retry and model fallback mechanism to handle 503 Service Unavailable / high demand
-        import asyncio
-        import json
-        
         models_to_try = ['gemini-2.5-flash', 'gemini-2.0-flash']
         last_error = None
         redactor_output = None
@@ -201,8 +220,11 @@ class LLMEngine:
             critic_output = await self._run_critic_agent(redactor_output, platform)
             if critic_output:
                 # Restoring carousel_prompts if the critic dropped them to avoid breaking carousels
-                if redactor_output.carousel_prompts and not critic_output.carousel_prompts:
+                redactor_has_prompts = redactor_output.carousel_prompts and len(redactor_output.carousel_prompts) > 0
+                critic_dropped_prompts = not critic_output.carousel_prompts or len(critic_output.carousel_prompts) == 0
+                if redactor_has_prompts and critic_dropped_prompts:
                     critic_output.carousel_prompts = redactor_output.carousel_prompts
+                    print("[Crítico] carousel_prompts restored from Redactor output (critic dropped them).")
                 print("[Crítico] Content refined and approved.")
                 return critic_output
             else:
@@ -222,8 +244,6 @@ class LLMEngine:
         Agente Crítico: Takes the Redactor's draft and audits it for B2B quality.
         Returns a refined GeneratedPostOutput, or None if it cannot improve the draft.
         """
-        import json
-
         critic_system_instruction = (
             "You are the Critic Agent for Puna Tech's content pipeline. Your ONLY job is to audit "
             "and refine a draft social media post generated by the Redactor Agent.\n\n"
