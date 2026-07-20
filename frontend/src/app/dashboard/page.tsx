@@ -519,7 +519,8 @@ function getFirstWeekday(year: number, month: number) {
 // ─── MAIN DASHBOARD ───────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const BACKEND_URL = 'http://127.0.0.1:8000';
+  // Use environment variable for backend URL in production (Vercel), fallback to localhost for development
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000';
   const DEFAULT_COMPANY_ID = '00000000-0000-0000-0000-000000000000';
 
   // Layout State
