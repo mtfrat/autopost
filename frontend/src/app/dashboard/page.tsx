@@ -535,6 +535,13 @@ export default function Dashboard() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [mobileDraftTab, setMobileDraftTab] = useState<'draft' | 'approved'>('draft');
 
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  const triggerToast = useCallback((msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 2500);
+  }, []);
+
   const [copyFeedback, setCopyFeedback] = useState(false);
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
 
@@ -806,9 +813,10 @@ export default function Dashboard() {
     }
   };
 
-  const handleCopy = useCallback((text: string) => {
+  const handleCopy = useCallback((text: string, label?: string) => {
     navigator.clipboard.writeText(text);
-  }, []);
+    triggerToast(label ? `¡${label} copiado! 📋` : '¡Copiado al portapapeles! 📋');
+  }, [triggerToast]);
 
   // Derived data
   const pendingDrafts = drafts.filter(d => d.approval_status === 'draft');
@@ -1486,24 +1494,26 @@ export default function Dashboard() {
                   {/* Hooks */}
                   <div className="border border-[#2a0e0e]/40 rounded-sm overflow-hidden divide-y divide-[#2a0e0e]/40">
                     {group.hooks.map((hook, i) => (
-                      <div key={i} className="flex items-center justify-between px-4 py-3 hover:bg-[#111218] group/hook transition-colors">
-                        <div className="flex items-center space-x-3 flex-1 min-w-0">
-                          <span className="text-[10px] font-mono text-[#6d2c2c] w-5 flex-shrink-0 text-right">{String(i + 1).padStart(2, '0')}</span>
-                          <p className="text-sm text-[#c2b9af] group-hover/hook:text-[#f8f4f0] transition-colors truncate">{hook}</p>
+                      <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between px-4 py-3 bg-[#111218]/30 hover:bg-[#111218] group/hook transition-colors gap-3">
+                        <div className="flex items-start sm:items-center space-x-3 flex-1 min-w-0">
+                          <span className="text-[10px] font-mono text-[#6d2c2c] w-5 flex-shrink-0 text-right pt-0.5 sm:pt-0">{String(i + 1).padStart(2, '0')}</span>
+                          <p className="text-sm text-[#f8f4f0] leading-snug">{hook}</p>
                         </div>
-                        <div className="flex items-center space-x-2 ml-3 flex-shrink-0">
+                        <div className="flex items-center space-x-2 sm:ml-3 flex-shrink-0 self-end sm:self-auto">
                           <button
-                            onClick={() => { setFormTopic(hook); setShowGenerateModal(true); }}
-                            className="opacity-0 group-hover/hook:opacity-100 text-[9px] font-mono text-[#af4c24] border border-[#af4c24]/30 px-2 py-1 rounded-sm hover:bg-[#af4c24]/10 transition-all"
+                            onClick={() => { setFormTopic(hook); triggerToast("¡Gancho cargado en la IA! ⚡"); setShowGenerateModal(true); }}
+                            className="text-[11px] font-mono font-semibold text-[#f8f4f0] bg-[#af4c24] hover:bg-[#c2562b] border border-[#af4c24] px-3 py-1.5 rounded-sm shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer"
                           >
-                            Usar
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                            <span>Usar gancho</span>
                           </button>
                           <button
-                            onClick={() => handleCopy(hook)}
-                            className="opacity-0 group-hover/hook:opacity-100 text-[9px] font-mono text-[#6d2c2c] hover:text-[#c2b9af] flex items-center space-x-1 transition-all"
+                            onClick={() => handleCopy(hook, "Gancho")}
+                            className="text-[11px] font-mono text-[#c2b9af] hover:text-[#f8f4f0] bg-[#111218] hover:bg-[#2a0e0e]/50 border border-[#2a0e0e] px-2.5 py-1.5 rounded-sm flex items-center space-x-1 transition-all cursor-pointer"
+                            title="Copiar texto"
                           >
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
-                            <span>Copy</span>
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                            <span>Copiar</span>
                           </button>
                         </div>
                       </div>
@@ -1521,7 +1531,7 @@ export default function Dashboard() {
             <div className="px-6 py-5 border-b border-[#2a0e0e]/60 flex-shrink-0">
               <h2 className="text-base font-bold text-[#f8f4f0] mb-0.5">Inspiraciones</h2>
               <p className="text-xs text-[#6d2c2c]">
-                Referencias de diseño y prompts visuales alineados al Manual de Marca de Puna Tech. Hacé clic en &quot;Design from this&quot; para usar el prompt.
+                Referencias de diseño y prompts visuales alineados al Manual de Marca de Puna Tech. Hacé clic en &quot;Usar este diseño&quot; para cargar el prompt en la IA.
               </p>
             </div>
 
@@ -1549,13 +1559,20 @@ export default function Dashboard() {
                     </div>
 
                     {/* Action */}
-                    <div className="px-5 py-5 flex flex-col items-end justify-between h-full border-l border-[#2a0e0e]/40">
+                    <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2.5 w-full sm:w-auto pt-3 sm:pt-0 border-t sm:border-t-0 sm:border-l border-[#2a0e0e]/60 sm:pl-5 flex-shrink-0">
                       <button
-                        onClick={() => { setVisualStyle(ins.promptHint); setShowGenerateModal(true); }}
-                        className="text-[10px] font-mono text-[#af4c24] hover:text-[#f8f4f0] flex items-center space-x-1 transition-colors whitespace-nowrap group-hover:underline"
+                        onClick={() => { setVisualStyle(ins.promptHint); triggerToast("¡Estilo visual cargado en la IA! 🎨"); setShowGenerateModal(true); }}
+                        className="w-full sm:w-auto text-xs font-mono font-semibold text-[#f8f4f0] bg-[#af4c24] hover:bg-[#c2562b] border border-[#af4c24] px-4 py-2 rounded-sm shadow-sm transition-all flex items-center justify-center space-x-2 cursor-pointer"
                       >
-                        <span>Design from this</span>
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" /></svg>
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>
+                        <span>Usar este diseño</span>
+                      </button>
+                      <button
+                        onClick={() => handleCopy(ins.promptHint, "Prompt")}
+                        className="w-full sm:w-auto text-xs font-mono text-[#c2b9af] hover:text-[#f8f4f0] bg-[#111218] hover:bg-[#2a0e0e]/50 border border-[#2a0e0e] px-3 py-1.5 rounded-sm flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                        <span>Copiar prompt</span>
                       </button>
                     </div>
                   </div>
@@ -1983,6 +2000,14 @@ export default function Dashboard() {
               </form>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── GLOBAL TOAST NOTIFICATION ───────────────────────────────────────── */}
+      {toastMsg && (
+        <div className="fixed bottom-6 right-6 z-50 bg-[#af4c24] text-[#f8f4f0] text-xs font-mono font-bold px-4 py-3 rounded-sm shadow-2xl border border-[#f8f4f0]/20 flex items-center space-x-2.5 transition-all animate-bounce">
+          <svg className="w-4 h-4 text-[#f8f4f0]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
+          <span>{toastMsg}</span>
         </div>
       )}
     </div>
