@@ -44,3 +44,38 @@ body {
   background: #af4c24;
 }
 
+/* Mobile Ergonomics & Bottom Sheet Utilities */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.pb-safe-bottom {
+  padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+@keyframes slideUpBottomSheet {
+  from {
+    transform: translateY(100%);
+    opacity: 0.8;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up-bottom-sheet {
+  animation: slideUpBottomSheet 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Touch friendly minimum click target */
+.touch-min-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+

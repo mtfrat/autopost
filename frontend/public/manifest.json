@@ -1,0 +1,17 @@
+{
+  "name": "Puna Tech - B2B Cognitive Systems",
+  "short_name": "Puna Tech",
+  "description": "Automatización de Contenidos B2B mediante Agentes Autónomos e Inteligencia Artificial",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#120505",
+  "theme_color": "#120505",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}

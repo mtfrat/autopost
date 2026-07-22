@@ -531,6 +531,10 @@ export default function Dashboard() {
   const [hookSearch, setHookSearch] = useState('');
   const [calendarDate, setCalendarDate] = useState(new Date());
 
+  // Mobile Layout State
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [mobileDraftTab, setMobileDraftTab] = useState<'draft' | 'approved'>('draft');
+
   const [copyFeedback, setCopyFeedback] = useState(false);
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
 
@@ -826,10 +830,115 @@ export default function Dashboard() {
   // ─── RENDER ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen bg-[#0d0505] text-[#f8f4f0] font-sans overflow-hidden">
+    <div className="flex flex-col md:flex-row h-screen bg-[#0d0505] text-[#f8f4f0] font-sans overflow-hidden pb-14 md:pb-0">
 
-      {/* ── SIDEBAR ──────────────────────────────────────────────────────────── */}
-      <aside className="w-[220px] flex-shrink-0 border-r border-[#2a0e0e]/80 flex flex-col bg-[#0d0505]">
+      {/* ── MOBILE HEADER ────────────────────────────────────────────────────── */}
+      <header className="md:hidden flex items-center justify-between px-4 py-3 bg-[#0d0505] border-b border-[#2a0e0e]/80 flex-shrink-0 z-30">
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="p-1.5 text-[#c2b9af] hover:text-[#f8f4f0] rounded-sm touch-min-target flex items-center justify-center"
+            aria-label="Abrir menú"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <div className="flex items-center space-x-2">
+            <div className="w-6 h-6 bg-[#af4c24] rounded-sm flex items-center justify-center">
+              <span className="font-mono font-bold text-white text-xs">P</span>
+            </div>
+            <span className="font-bold text-sm text-[#f8f4f0] tracking-wide font-sans">Puna Tech</span>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setShowGenerateModal(true)}
+            className="flex items-center space-x-1 bg-[#af4c24] text-white text-[11px] font-mono font-bold px-3 py-1.5 rounded-sm hover:bg-[#8c3b1a] transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
+            <span>NUEVO</span>
+          </button>
+        </div>
+      </header>
+
+      {/* ── MOBILE DRAWER OVERLAY ────────────────────────────────────────────── */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex">
+          <div
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+          <div className="relative w-[280px] max-w-[80vw] bg-[#0d0505] h-full border-r border-[#2a0e0e]/80 flex flex-col z-10 shadow-2xl animate-slide-up-bottom-sheet">
+            <div className="p-4 border-b border-[#2a0e0e]/60 flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <div className="w-6 h-6 bg-[#af4c24] rounded-sm flex items-center justify-center">
+                  <span className="font-mono font-bold text-white text-xs">P</span>
+                </div>
+                <span className="font-bold text-sm text-[#f8f4f0]">Puna Tech</span>
+              </div>
+              <button
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="w-7 h-7 text-[#6d2c2c] hover:text-[#f8f4f0] flex items-center justify-center"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <nav className="p-3 space-y-1 overflow-y-auto flex-1">
+              <NavItem
+                active={activeSection === 'calendar'}
+                onClick={() => { setActiveSection('calendar'); setIsMobileMenuOpen(false); }}
+                label="Calendar"
+                icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}
+              />
+              <NavItem
+                active={activeSection === 'readyToPost'}
+                onClick={() => { setActiveSection('readyToPost'); setIsMobileMenuOpen(false); }}
+                label="Ready to post"
+                icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+              />
+              <NavItem
+                active={activeSection === 'ganchos'}
+                onClick={() => { setActiveSection('ganchos'); setIsMobileMenuOpen(false); }}
+                label="Ganchos"
+                count={totalHooks}
+                icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>}
+              />
+              <NavItem
+                active={activeSection === 'inspiraciones'}
+                onClick={() => { setActiveSection('inspiraciones'); setIsMobileMenuOpen(false); }}
+                label="Inspiraciones"
+                count={INSPIRATIONS_DATA.length}
+                icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>}
+              />
+              <NavItem
+                active={activeSection === 'categorias'}
+                onClick={() => { setActiveSection('categorias'); setIsMobileMenuOpen(false); }}
+                label="Categorías"
+                count={Object.keys(CONTENT_TYPE_CONFIG).length}
+                icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>}
+              />
+              <NavItem
+                active={activeSection === 'brandLibrary'}
+                onClick={() => { setActiveSection('brandLibrary'); setIsMobileMenuOpen(false); }}
+                label="Brand Library"
+                icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}
+              />
+              <NavItem
+                active={activeSection === 'imageTemplates'}
+                onClick={() => { setActiveSection('imageTemplates'); setIsMobileMenuOpen(false); }}
+                label="Plantillas de Imagen"
+                icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}
+              />
+            </nav>
+          </div>
+        </div>
+      )}
+
+      {/* ── SIDEBAR (DESKTOP) ────────────────────────────────────────────────── */}
+      <aside className="hidden md:flex w-[220px] flex-shrink-0 border-r border-[#2a0e0e]/80 flex-col bg-[#0d0505]">
 
         {/* Header */}
         <div className="px-4 pt-5 pb-3 border-b border-[#2a0e0e]/60">
@@ -957,11 +1066,61 @@ export default function Dashboard() {
 
         {/* ── READY TO POST VIEW ───────────────────────────────────────── */}
         {activeSection === 'readyToPost' && (
-          <div className="flex-1 flex overflow-hidden">
-            {activeDraft ? (
-              <>
-                {/* Left: Visual Panel */}
-                <div className="w-[340px] flex-shrink-0 border-r border-[#2a0e0e]/60 flex flex-col overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-hidden">
+
+            {/* Mobile Post Filter & Selector Bar */}
+            <div className="md:hidden border-b border-[#2a0e0e]/60 bg-[#0a0404] p-2 flex flex-col space-y-2 flex-shrink-0 z-10">
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setMobileDraftTab('draft')}
+                  className={`px-3 py-1 text-[10px] font-mono font-bold uppercase rounded-sm border transition-colors ${
+                    mobileDraftTab === 'draft'
+                      ? 'bg-[#af4c24] border-[#af4c24] text-white'
+                      : 'bg-[#111218] border-[#2a0e0e]/60 text-[#6d2c2c]'
+                  }`}
+                >
+                  Borradores ({pendingDrafts.length})
+                </button>
+                <button
+                  onClick={() => setMobileDraftTab('approved')}
+                  className={`px-3 py-1 text-[10px] font-mono font-bold uppercase rounded-sm border transition-colors ${
+                    mobileDraftTab === 'approved'
+                      ? 'bg-emerald-800/60 border-emerald-600 text-white'
+                      : 'bg-[#111218] border-[#2a0e0e]/60 text-[#6d2c2c]'
+                  }`}
+                >
+                  Aprobados ({approvedDrafts.length})
+                </button>
+              </div>
+
+              {/* Horizontal Scrollable Posts */}
+              <div className="flex space-x-2 overflow-x-auto no-scrollbar py-1">
+                {(mobileDraftTab === 'draft' ? pendingDrafts : approvedDrafts).map(d => (
+                  <button
+                    key={d.id}
+                    onClick={() => setActiveDraftId(d.id)}
+                    className={`flex-shrink-0 max-w-[180px] p-2 rounded-sm border text-left transition-all ${
+                      activeDraftId === d.id
+                        ? 'border-[#af4c24] bg-[#af4c24]/10 text-white'
+                        : 'border-[#2a0e0e]/60 bg-[#111218] text-[#c2b9af]'
+                    }`}
+                  >
+                    <span className="text-[9px] font-mono font-bold text-[#af4c24] block uppercase truncate">
+                      {d.platform_name}
+                    </span>
+                    <p className="text-[10px] truncate leading-tight mt-0.5">
+                      {d.generated_text.split('\n')[0].replace(/\*\*/g, '')}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+              {activeDraft ? (
+                <>
+                  {/* Left: Visual Panel */}
+                  <div className="w-full md:w-[340px] flex-shrink-0 border-b md:border-b-0 md:border-r border-[#2a0e0e]/60 flex flex-col overflow-y-auto max-md:max-h-[380px]">
                   {/* Platform Tabs */}
                   <div className="border-b border-[#2a0e0e]/60 px-4 pt-4 pb-0">
                     <div className="flex space-x-1">
@@ -1200,6 +1359,7 @@ export default function Dashboard() {
                 </button>
               </div>
             )}
+            </div>
           </div>
         )}
 
@@ -1527,17 +1687,74 @@ export default function Dashboard() {
         )}
       </main>
 
-      {/* ── GENERATE MODAL ───────────────────────────────────────────────────── */}
+      {/* ── MOBILE BOTTOM NAVIGATION BAR (Fixed) ─────────────────────────── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#0d0505]/95 border-t border-[#2a0e0e]/80 backdrop-blur-md z-40 flex items-center justify-around px-2 pb-safe">
+        <button
+          onClick={() => setActiveSection('readyToPost')}
+          className={`flex flex-col items-center justify-center w-14 h-12 rounded-sm transition-colors ${
+            activeSection === 'readyToPost' ? 'text-[#af4c24]' : 'text-[#6d2c2c] hover:text-[#c2b9af]'
+          }`}
+        >
+          <div className="relative">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            {pendingDrafts.length > 0 && (
+              <span className="absolute -top-1 -right-2 bg-[#af4c24] text-white text-[8px] font-mono font-bold px-1 rounded-full">
+                {pendingDrafts.length}
+              </span>
+            )}
+          </div>
+          <span className="text-[9px] font-mono mt-0.5 font-bold">Posts</span>
+        </button>
+
+        <button
+          onClick={() => setActiveSection('calendar')}
+          className={`flex flex-col items-center justify-center w-14 h-12 rounded-sm transition-colors ${
+            activeSection === 'calendar' ? 'text-[#af4c24]' : 'text-[#6d2c2c] hover:text-[#c2b9af]'
+          }`}
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+          <span className="text-[9px] font-mono mt-0.5">Agenda</span>
+        </button>
+
+        {/* Central Action Button */}
+        <button
+          onClick={() => setShowGenerateModal(true)}
+          aria-label="Crear nuevo contenido"
+          className="flex flex-col items-center justify-center w-12 h-12 -mt-4 bg-[#af4c24] text-white rounded-full shadow-lg shadow-[#af4c24]/30 hover:bg-[#8c3b1a] transition-all touch-min-target active:scale-95"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
+        </button>
+
+        <button
+          onClick={() => setActiveSection('ganchos')}
+          className={`flex flex-col items-center justify-center w-14 h-12 rounded-sm transition-colors ${
+            activeSection === 'ganchos' ? 'text-[#af4c24]' : 'text-[#6d2c2c] hover:text-[#c2b9af]'
+          }`}
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+          <span className="text-[9px] font-mono mt-0.5">Ganchos</span>
+        </button>
+
+        <button
+          onClick={() => setIsMobileMenuOpen(true)}
+          className="flex flex-col items-center justify-center w-14 h-12 rounded-sm text-[#6d2c2c] hover:text-[#c2b9af] transition-colors"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+          <span className="text-[9px] font-mono mt-0.5">Más</span>
+        </button>
+      </nav>
+
+      {/* ── GENERATE MODAL (Bottom Sheet en Mobile) ───────────────────────────── */}
       {showGenerateModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
+          className="fixed inset-0 z-50 flex items-center justify-center max-md:items-end"
           onClick={(e) => { if (e.target === e.currentTarget) setShowGenerateModal(false); }}
         >
           {/* Backdrop */}
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
 
-          {/* Modal Card */}
-          <div className="relative w-full max-w-xl bg-[#0d0505] border border-[#2a0e0e]/80 rounded-sm shadow-2xl shadow-black/60 flex flex-col max-h-[90vh] overflow-hidden">
+          {/* Modal / Bottom Sheet Card */}
+          <div className="relative w-full max-w-xl bg-[#0d0505] border border-[#2a0e0e]/80 rounded-t-2xl md:rounded-sm shadow-2xl shadow-black/60 flex flex-col max-h-[90vh] overflow-hidden max-md:fixed max-md:bottom-0 max-md:left-0 max-md:right-0 animate-slide-up-bottom-sheet md:animate-none">
 
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-[#2a0e0e]/60 flex items-center justify-between flex-shrink-0">
@@ -1726,11 +1943,11 @@ export default function Dashboard() {
       {/* ── OVERLAY TEMPLATE MODAL ────────────────────────────────────────────── */}
       {showOverlayModal && selectedBaseImage && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
+          className="fixed inset-0 z-50 flex items-center justify-center max-md:items-end"
           onClick={(e) => { if (e.target === e.currentTarget) setShowOverlayModal(false); }}
         >
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-          <div className="relative w-full max-w-md bg-[#0d0505] border border-[#2a0e0e]/80 rounded-sm shadow-2xl shadow-black/60 flex flex-col">
+          <div className="relative w-full max-w-md bg-[#0d0505] border border-[#2a0e0e]/80 rounded-t-2xl md:rounded-sm shadow-2xl shadow-black/60 flex flex-col max-md:fixed max-md:bottom-0 max-md:left-0 max-md:right-0 animate-slide-up-bottom-sheet md:animate-none overflow-hidden">
             <div className="px-6 py-4 border-b border-[#2a0e0e]/60 flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-bold text-[#f8f4f0] font-mono uppercase tracking-wider">Generar con Plantilla</h3>
