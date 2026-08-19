@@ -1,133 +1,76 @@
-from supabase import create_client, Client
-from app.core.config import settings
+import uuid
 from typing import Optional, List, Dict, Any
+from datetime import datetime, timezone
+
+# In-memory storage for the demo branch
+_db_draft_assets = []
+_db_templates = []
+_db_brand_images = []
+_db_users = []
+_db_pending_topics = []
 
 class DatabaseService:
     def __init__(self):
-        self.client: Optional[Client] = None
-        if settings.SUPABASE_URL and settings.SUPABASE_KEY:
-            try:
-                self.client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
-            except Exception as e:
-                # Log or print warning, will throw on usage if keys are invalid
-                print(f"Warning: Failed to initialize Supabase client: {e}")
-
+        self.client = None
+        
     def _check_client(self):
-        if not self.client:
-            raise ValueError("Supabase client is not initialized. Please configure SUPABASE_URL and SUPABASE_KEY in .env.")
+        pass # Mocked
 
     async def get_company_voice(self, company_id: str) -> Dict[str, Any]:
-        self._check_client()
-        try:
-            response = self.client.table("tenant_companies").select("*").eq("id", company_id).execute()
-            if response.data and len(response.data) > 0:
-                return response.data[0]
-        except Exception as e:
-            print(f"Warning: Database query failed, using fallback: {e}")
-            
-        # Safe fallback for the demo / local testing company ID
-        if company_id == "00000000-0000-0000-0000-000000000000" or company_id == "puna-tech-uuid":
-            return {
-                "id": company_id,
-                "name": "Puna Tech",
-                "industry_vertical": "AI Agents & B2B Automation",
-                "brand_voice_guidelines": "Tono B2B profesional, estructurado, enfocado en el ahorro de horas operativas y ROI de tiempo. Máximo 2 emojis.",
-                "brand_colors": "Terracota cálido (#af4c24), caoba profundo (#6d2c2c) y fondo crema suave (#f8f4f0)",
-                "visual_style_guidelines": "Estética cálida y orgánica B2B premium, ilustración 3D minimalista con texturas mate de terracota y cerámica sobre fondo crema limpio"
-            }
-        raise ValueError(f"Company with ID {company_id} not found in database.")
+        return {
+            "id": company_id,
+            "name": "Puna Tech (Demo)",
+            "industry_vertical": "AI Agents & B2B Automation",
+            "brand_voice_guidelines": "Tono B2B profesional, estructurado, enfocado en el ahorro de horas operativas y ROI de tiempo. Máximo 2 emojis.",
+            "brand_colors": "Terracota cálido (#af4c24), caoba profundo (#6d2c2c) y fondo crema suave (#f8f4f0)",
+            "visual_style_guidelines": "Estética cálida y orgánica B2B premium, ilustración 3D minimalista con texturas mate de terracota y cerámica sobre fondo crema limpio"
+        }
 
     async def get_active_configs(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        self._check_client()
-        query = self.client.table("platform_configurations").select("*").eq("is_active", True)
-        if company_id:
-            query = query.eq("company_id", company_id)
-        response = query.execute()
-        return response.data or []
+        return []
 
     async def pop_pending_topic(self, company_id: str) -> Optional[Dict[str, Any]]:
-        self._check_client()
-        # 1. Select the oldest pending topic
-        response = (
-            self.client.table("content_backlog")
-            .select("*")
-            .eq("company_id", company_id)
-            .eq("is_consumed", False)
-            .order("created_at", desc=False)
-            .limit(1)
-            .execute()
-        )
-        if not response.data or len(response.data) == 0:
-            return None
-        
-        topic = response.data[0]
-        # 2. Mark it as consumed
-        update_response = (
-            self.client.table("content_backlog")
-            .update({"is_consumed": True})
-            .eq("id", topic["id"])
-            .execute()
-        )
-        if update_response.data and len(update_response.data) > 0:
-            return update_response.data[0]
-        return topic
+        if _db_pending_topics:
+            return _db_pending_topics.pop(0)
+        return None
 
     async def insert_generated_asset(self, company_id: str, platform: str, text: str, media_url: Optional[str]) -> Dict[str, Any]:
-        self._check_client()
-        response = (
-            self.client.table("generated_assets")
-            .insert({
-                "company_id": company_id,
-                "platform_name": platform,
-                "generated_text": text,
-                "media_url": media_url,
-                "approval_status": "draft"
-            })
-            .execute()
-        )
-        if response.data and len(response.data) > 0:
-            return response.data[0]
-        raise RuntimeError("Failed to insert generated asset into Supabase.")
+        asset = {
+            "id": str(uuid.uuid4()),
+            "company_id": company_id,
+            "platform_name": platform,
+            "generated_text": text,
+            "media_url": media_url,
+            "approval_status": "draft",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        _db_draft_assets.append(asset)
+        return asset
 
     async def get_draft_assets(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        self._check_client()
-        query = self.client.table("generated_assets").select("*").eq("approval_status", "draft")
         if company_id:
-            query = query.eq("company_id", company_id)
-        response = query.execute()
-        return response.data or []
+            return [a for a in _db_draft_assets if a["company_id"] == company_id and a["approval_status"] == "draft"]
+        return [a for a in _db_draft_assets if a["approval_status"] == "draft"]
 
     async def update_asset_status(self, asset_id: str, status: str) -> Dict[str, Any]:
-        self._check_client()
-        response = (
-            self.client.table("generated_assets")
-            .update({"approval_status": status})
-            .eq("id", asset_id)
-            .execute()
-        )
-        if response.data and len(response.data) > 0:
-            return response.data[0]
-        raise ValueError(f"Asset with ID {asset_id} not found or update failed.")
+        for a in _db_draft_assets:
+            if a["id"] == asset_id:
+                a["approval_status"] = status
+                return a
+        raise ValueError(f"Asset with ID {asset_id} not found.")
 
     async def create_user(self, email: str, company_id: str, full_name: Optional[str] = None) -> Dict[str, Any]:
-        self._check_client()
-        response = (
-            self.client.table("users")
-            .insert({
-                "email": email,
-                "company_id": company_id,
-                "full_name": full_name
-            })
-            .execute()
-        )
-        if response.data and len(response.data) > 0:
-            return response.data[0]
-        raise RuntimeError("Failed to create user in database.")
+        user = {
+            "id": str(uuid.uuid4()),
+            "email": email,
+            "company_id": company_id,
+            "full_name": full_name
+        }
+        _db_users.append(user)
+        return user
 
     async def get_users(self) -> List[Dict[str, Any]]:
-        self._check_client()
-        response = self.client.table("users").select("*").execute()
-        return response.data or []
+        return _db_users
 
     async def create_template(
         self,
@@ -141,79 +84,45 @@ class DatabaseService:
         visual_format: str = "single_image",
         image_model: str = "black-forest-labs/flux-schnell"
     ) -> Dict[str, Any]:
-        self._check_client()
-        response = (
-            self.client.table("generation_templates")
-            .insert({
-                "name": name,
-                "company_id": company_id,
-                "brand_colors": brand_colors,
-                "visual_style_guidelines": visual_style_guidelines,
-                "tone_modifier": tone_modifier,
-                "platforms": platforms,
-                "skip_image": skip_image,
-                "visual_format": visual_format,
-                "image_model": image_model
-            })
-            .execute()
-        )
-        if response.data and len(response.data) > 0:
-            return response.data[0]
-        raise RuntimeError("Failed to create template in database.")
+        t = {
+            "id": str(uuid.uuid4()),
+            "name": name,
+            "company_id": company_id,
+            "brand_colors": brand_colors,
+            "visual_style_guidelines": visual_style_guidelines,
+            "tone_modifier": tone_modifier,
+            "platforms": platforms,
+            "skip_image": skip_image,
+            "visual_format": visual_format,
+            "image_model": image_model
+        }
+        _db_templates.append(t)
+        return t
 
     async def get_templates(self, company_id: str) -> List[Dict[str, Any]]:
-        self._check_client()
-        response = (
-            self.client.table("generation_templates")
-            .select("*")
-            .eq("company_id", company_id)
-            .execute()
-        )
-        return response.data or []
-
-    # ── Brand Image Library ──────────────────────────────────────────────
+        return [t for t in _db_templates if t["company_id"] == company_id]
 
     async def get_brand_images(self, company_id: str, category: Optional[str] = None) -> List[Dict[str, Any]]:
-        self._check_client()
-        query = self.client.table("brand_image_library").select("*").eq("company_id", company_id).eq("is_active", True).order("created_at", desc=True)
-        if category:
-            query = query.eq("category", category)
-        response = query.execute()
-        return response.data or []
+        return [img for img in _db_brand_images if img["company_id"] == company_id]
 
     async def create_brand_image(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        self._check_client()
-        response = self.client.table("brand_image_library").insert(data).execute()
-        if response.data and len(response.data) > 0:
-            return response.data[0]
-        raise RuntimeError("Failed to insert brand image into database.")
+        data["id"] = str(uuid.uuid4())
+        _db_brand_images.append(data)
+        return data
 
     async def delete_brand_image(self, image_id: str) -> bool:
-        self._check_client()
-        self.client.table("brand_image_library").delete().eq("id", image_id).execute()
+        global _db_brand_images
+        _db_brand_images = [img for img in _db_brand_images if img["id"] != image_id]
         return True
 
     async def get_random_brand_image(self, company_id: str, category: Optional[str] = None) -> Optional[Dict[str, Any]]:
-        self._check_client()
-        query = self.client.table("brand_image_library").select("*").eq("company_id", company_id).eq("is_active", True)
-        if category:
-            query = query.eq("category", category)
-        response = query.execute()
-        if response.data and len(response.data) > 0:
-            import random
-            return random.choice(response.data)
-        return None
-
-    # ── Storage ─────────────────────────────────────────────────────────
+        return {
+            "id": str(uuid.uuid4()),
+            "company_id": company_id,
+            "category": category,
+            "image_url": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=1080"
+        }
 
     async def upload_to_storage(self, bucket: str, filename: str, file_data: bytes, content_type: str = "image/png") -> str:
-        self._check_client()
-        # Upload the file
-        res = self.client.storage.from_(bucket).upload(
-            path=filename,
-            file=file_data,
-            file_options={"content-type": content_type, "upsert": "true"}
-        )
-        # Get public URL
-        public_url = self.client.storage.from_(bucket).get_public_url(filename)
-        return public_url
+        # Mocking upload, just return a dummy placeholder
+        return "https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=1080"
