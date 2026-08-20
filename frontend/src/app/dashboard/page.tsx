@@ -591,14 +591,23 @@ export default function Dashboard() {
   }, []);
 
   const fetchBaseImages = async () => {
+    const MOCK_BASE_IMAGES = [
+      { id: 'img-1', name: 'Oficina Puna Tech', url: 'https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=800' },
+      { id: 'img-2', name: 'Arquitectura Cloud', url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=800' },
+      { id: 'img-3', name: 'Dashboard Analytics', url: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=800' },
+      { id: 'img-4', name: 'Equipo de Ingeniería', url: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=800' },
+    ];
     try {
       const res = await fetch(`${BACKEND_URL}/api/v1/brand-library/templates`);
       if (res.ok) {
         const data = await res.json();
-        setBaseImages(data);
+        setBaseImages(data.length > 0 ? data : MOCK_BASE_IMAGES);
+      } else {
+        setBaseImages(MOCK_BASE_IMAGES);
       }
     } catch (e) {
-      console.warn("Failed to fetch base images", e);
+      console.warn("Failed to fetch base images, using mocks", e);
+      setBaseImages(MOCK_BASE_IMAGES);
     }
   };
 
@@ -746,9 +755,24 @@ export default function Dashboard() {
         throw new Error(err.detail);
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Error en overlay generation');
+      setTimeout(() => {
+        const mockOverlayAsset: GeneratedAsset = {
+          id: `mock-overlay-${Date.now()}`,
+          company_id: companyId,
+          platform_name: 'instagram',
+          generated_text: `[Demo] ${overlayTopic}\n\nEste es un borrador de overlay generado a partir de una plantilla visual en el Modo Demo.`,
+          media_url: selectedBaseImage?.url || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=600',
+          approval_status: 'draft',
+          created_at: new Date().toISOString(),
+        };
+        setDrafts(prev => [mockOverlayAsset, ...prev]);
+        setActiveDraftId(mockOverlayAsset.id);
+        setActiveSection('readyToPost');
+        setOverlayTopic('');
+        setShowOverlayModal(false);
+      }, 2500);
     } finally {
-      setGenerating(false);
+      setTimeout(() => setGenerating(false), 3000);
     }
   };
 
