@@ -520,7 +520,8 @@ function getFirstWeekday(year: number, month: number) {
 
 export default function Dashboard() {
   // Use environment variable for backend URL in production (Vercel), fallback to localhost for development
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000';
+  // Force Demo Mode for Portfolio Branch
+  const BACKEND_URL = 'http://localhost:9999'; // intentionally breaks fetch to trigger MOCK data
   const DEFAULT_COMPANY_ID = '00000000-0000-0000-0000-000000000000';
 
   // Layout State
