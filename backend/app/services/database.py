@@ -5,36 +5,18 @@ from typing import Optional, List, Dict, Any
 class DatabaseService:
     def __init__(self):
         self.client: Optional[Client] = None
-        if settings.SUPABASE_URL and settings.SUPABASE_KEY:
-            try:
-                self.client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
-            except Exception as e:
-                # Log or print warning, will throw on usage if keys are invalid
-                print(f"Warning: Failed to initialize Supabase client: {e}")
+        if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
+            self.client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 
     def _check_client(self):
         if not self.client:
-            raise ValueError("Supabase client is not initialized. Please configure SUPABASE_URL and SUPABASE_KEY in .env.")
+            raise RuntimeError("Supabase client is not configured.")
 
     async def get_company_voice(self, company_id: str) -> Dict[str, Any]:
         self._check_client()
-        try:
-            response = self.client.table("tenant_companies").select("*").eq("id", company_id).execute()
-            if response.data and len(response.data) > 0:
-                return response.data[0]
-        except Exception as e:
-            print(f"Warning: Database query failed, using fallback: {e}")
-            
-        # Safe fallback for the demo / local testing company ID
-        if company_id == "00000000-0000-0000-0000-000000000000" or company_id == "puna-tech-uuid":
-            return {
-                "id": company_id,
-                "name": "Puna Tech",
-                "industry_vertical": "AI Agents & B2B Automation",
-                "brand_voice_guidelines": "Tono B2B profesional, estructurado, enfocado en el ahorro de horas operativas y ROI de tiempo. Máximo 2 emojis.",
-                "brand_colors": "Terracota cálido (#af4c24), caoba profundo (#6d2c2c) y fondo crema suave (#f8f4f0)",
-                "visual_style_guidelines": "Estética cálida y orgánica B2B premium, ilustración 3D minimalista con texturas mate de terracota y cerámica sobre fondo crema limpio"
-            }
+        response = self.client.table("tenant_companies").select("*").eq("id", company_id).execute()
+        if response.data and len(response.data) > 0:
+            return response.data[0]
         raise ValueError(f"Company with ID {company_id} not found in database.")
 
     async def get_active_configs(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -66,6 +48,7 @@ class DatabaseService:
             self.client.table("content_backlog")
             .update({"is_consumed": True})
             .eq("id", topic["id"])
+            .eq("company_id", company_id)
             .execute()
         )
         if update_response.data and len(update_response.data) > 0:
@@ -89,20 +72,19 @@ class DatabaseService:
             return response.data[0]
         raise RuntimeError("Failed to insert generated asset into Supabase.")
 
-    async def get_draft_assets(self, company_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def get_draft_assets(self, company_id: str) -> List[Dict[str, Any]]:
         self._check_client()
-        query = self.client.table("generated_assets").select("*").eq("approval_status", "draft")
-        if company_id:
-            query = query.eq("company_id", company_id)
+        query = self.client.table("generated_assets").select("*").eq("approval_status", "draft").eq("company_id", company_id)
         response = query.execute()
         return response.data or []
 
-    async def update_asset_status(self, asset_id: str, status: str) -> Dict[str, Any]:
+    async def update_asset_status(self, asset_id: str, status: str, company_id: str) -> Dict[str, Any]:
         self._check_client()
         response = (
             self.client.table("generated_assets")
             .update({"approval_status": status})
             .eq("id", asset_id)
+            .eq("company_id", company_id)
             .execute()
         )
         if response.data and len(response.data) > 0:
@@ -188,9 +170,9 @@ class DatabaseService:
             return response.data[0]
         raise RuntimeError("Failed to insert brand image into database.")
 
-    async def delete_brand_image(self, image_id: str) -> bool:
+    async def delete_brand_image(self, image_id: str, company_id: str) -> bool:
         self._check_client()
-        self.client.table("brand_image_library").delete().eq("id", image_id).execute()
+        self.client.table("brand_image_library").delete().eq("id", image_id).eq("company_id", company_id).execute()
         return True
 
     async def get_random_brand_image(self, company_id: str, category: Optional[str] = None) -> Optional[Dict[str, Any]]:

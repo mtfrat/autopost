@@ -2,6 +2,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.services.database import DatabaseService
 from app.services.llm_engine import LLMEngine
 from app.services.media_engine import MediaEngine
+from app.core.config import settings
 import asyncio
 
 scheduler = AsyncIOScheduler()
@@ -48,7 +49,7 @@ async def process_automated_content_queue():
 
     try:
         # 1. Fetch all active platform configurations
-        active_configs = await db_service.get_active_configs()
+        active_configs = await db_service.get_active_configs(settings.PUNA_COMPANY_ID)
 
         # 2. Iterate configurations and check if there are pending backlog items
         for config in active_configs:

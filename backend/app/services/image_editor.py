@@ -35,7 +35,7 @@ class ImageEditorService:
     async def create_overlay_image(self, base_image_url: str, overlay_text: str) -> bytes:
         """Downloads base image, normalizes to Instagram 4:5, applies large, dynamic overlay text."""
         # 1. Download image
-        response = requests.get(base_image_url)
+        response = requests.get(base_image_url, timeout=15)
         response.raise_for_status()
         
         # 2. Open image and normalize to standard canvas
