@@ -41,7 +41,7 @@ async def require_mutations_enabled(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=_error("mutations_disabled", "Worker mutations are disabled.", True),
         )
-    if not idempotency_key or len(idempotency_key) > 200:
+    if not idempotency_key or len(idempotency_key) < 16 or len(idempotency_key) > 200:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=_error("invalid_idempotency_key", "A valid Idempotency-Key is required."),
@@ -51,7 +51,7 @@ async def require_mutations_enabled(
 def require_allowed_image_url(value: str) -> str:
     parsed = urlparse(value)
     host = (parsed.hostname or "").lower()
-    if parsed.scheme != "https" or not host:
+    if parsed.scheme != "https" or not host or parsed.username or parsed.password or parsed.port not in (None, 443):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=_error("invalid_image_url", "The image URL must use HTTPS."),

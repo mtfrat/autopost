@@ -1,6 +1,7 @@
 from supabase import create_client, Client
 from app.core.config import settings
 from typing import Optional, List, Dict, Any
+from datetime import datetime, timezone
 
 class DatabaseService:
     def __init__(self):
@@ -199,3 +200,25 @@ class DatabaseService:
         # Get public URL
         public_url = self.client.storage.from_(bucket).get_public_url(filename)
         return public_url
+
+    async def begin_render(self, idempotency_key: str, request_hash: str) -> Dict[str, Any]:
+        self._check_client()
+        response = self.client.rpc("begin_worker_render", {"target_key": idempotency_key, "target_hash": request_hash}).execute()
+        data = response.data
+        if isinstance(data, list):
+            data = data[0] if data else None
+        if not data:
+            raise RuntimeError("Failed to create renderer idempotency record.")
+        return data
+
+    async def complete_render(self, run_id: str, result: Dict[str, Any]) -> None:
+        self._check_client()
+        self.client.table("worker_render_runs").update({
+            "status": "succeeded", "output_path": result["output_path"], "width": result["width"],
+            "height": result["height"], "mime_type": result["mime_type"], "sha256": result["sha256"],
+            "error_code": None, "completed_at": datetime.now(timezone.utc).isoformat(),
+        }).eq("id", run_id).execute()
+
+    async def fail_render(self, run_id: str, error_code: str) -> None:
+        self._check_client()
+        self.client.table("worker_render_runs").update({"status": "failed", "error_code": error_code, "completed_at": datetime.now(timezone.utc).isoformat()}).eq("id", run_id).execute()

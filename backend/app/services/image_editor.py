@@ -1,137 +1,142 @@
+from __future__ import annotations
+
+import hashlib
 import io
 import os
-import requests
-from PIL import Image, ImageDraw, ImageFont
-from app.services.database import DatabaseService
-import uuid
+from typing import Any
 
-# Standard Instagram canvas size (4:5 portrait)
-CANVAS_WIDTH = 1080
-CANVAS_HEIGHT = 1350
+import requests
+from PIL import Image, ImageDraw, ImageFont, ImageOps
+
+
+FORMATS = {
+    "instagram_portrait": (1080, 1350),
+    "linkedin_square": (1080, 1080),
+    "linkedin_horizontal": (1200, 627),
+    "x_horizontal": (1600, 900),
+}
+MAX_SOURCE_BYTES = 12 * 1024 * 1024
+Image.MAX_IMAGE_PIXELS = 40_000_000
+
+
+def _hex_color(value: str) -> tuple[int, int, int]:
+    return tuple(int(value[index:index + 2], 16) for index in (1, 3, 5))
+
 
 class ImageEditorService:
     def __init__(self):
         self.font_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "fonts", "Geist-Bold.ttf")
-        
-    def _resize_to_canvas(self, img: Image.Image) -> Image.Image:
-        """Resize and crop the image to fit the standard Instagram 4:5 canvas."""
-        target_ratio = CANVAS_WIDTH / CANVAS_HEIGHT
-        img_ratio = img.width / img.height
-        
-        if img_ratio > target_ratio:
-            new_height = img.height
-            new_width = int(new_height * target_ratio)
-            left = (img.width - new_width) // 2
-            img = img.crop((left, 0, left + new_width, new_height))
-        else:
-            new_width = img.width
-            new_height = int(new_width / target_ratio)
-            top = (img.height - new_height) // 2
-            img = img.crop((0, top, new_width, top + new_height))
-        
-        img = img.resize((CANVAS_WIDTH, CANVAS_HEIGHT), Image.LANCZOS)
-        return img
 
-    async def create_overlay_image(self, base_image_url: str, overlay_text: str) -> bytes:
-        """Downloads base image, normalizes to Instagram 4:5, applies large, dynamic overlay text."""
-        # 1. Download image
-        response = requests.get(base_image_url, timeout=15)
+    def _download_source(self, source_url: str, size: tuple[int, int]) -> Image.Image:
+        response = requests.get(source_url, timeout=15, stream=True, allow_redirects=False)
         response.raise_for_status()
-        
-        # 2. Open image and normalize to standard canvas
-        img = Image.open(io.BytesIO(response.content)).convert("RGBA")
-        img = self._resize_to_canvas(img)
-        width, height = img.size  # Always 1080x1350
-        
-        # 3. Dark veil for readability
-        overlay = Image.new('RGBA', img.size, (0, 0, 0, 0))
-        draw_overlay = ImageDraw.Draw(overlay)
-        draw_overlay.rectangle([0, 0, width, height], fill=(13, 5, 5, 120))
-        img = Image.alpha_composite(img, overlay)
-        
-        # 4. Calculate dynamic font size based on character count & word count
-        text_upper = overlay_text.upper().strip()
-        num_chars = len(text_upper)
-        
-        if num_chars <= 15:
-            base_font_size = 110
-        elif num_chars <= 30:
-            base_font_size = 95
-        elif num_chars <= 50:
-            base_font_size = 80
-        else:
-            base_font_size = 68
-            
-        FONT_SIZE = base_font_size
-        try:
-            font = ImageFont.truetype(self.font_path, FONT_SIZE)
-        except IOError:
-            print(f"[ImageEditor] WARNING: Could not load font at {self.font_path}, using default")
-            font = ImageFont.load_default()
-            
-        # 5. Word-wrap text
-        words = text_upper.split()
-        lines = []
-        current_line = []
-        max_text_width = width * 0.82  # 82% of canvas width
-        
-        tmp_img = Image.new('RGBA', (1, 1))
-        tmp_draw = ImageDraw.Draw(tmp_img)
-        
+        if int(response.headers.get("content-length", "0") or 0) > MAX_SOURCE_BYTES:
+            raise ValueError("source_image_too_large")
+        data = bytearray()
+        for chunk in response.iter_content(64 * 1024):
+            data.extend(chunk)
+            if len(data) > MAX_SOURCE_BYTES:
+                raise ValueError("source_image_too_large")
+        source = Image.open(io.BytesIO(data))
+        if source.format not in {"JPEG", "PNG", "WEBP"}:
+            raise ValueError("invalid_source_image")
+        return ImageOps.fit(source.convert("RGB"), size, method=Image.Resampling.LANCZOS).convert("RGBA")
+
+    def _editorial_canvas(self, size: tuple[int, int]) -> Image.Image:
+        width, height = size
+        image = Image.new("RGBA", size, (247, 239, 226, 255))
+        draw = ImageDraw.Draw(image)
+        grid = max(28, width // 28)
+        for x in range(0, width, grid):
+            draw.line((x, 0, x, height), fill=(125, 41, 53, 18), width=1)
+        for y in range(0, height, grid):
+            draw.line((0, y, width, y), fill=(125, 41, 53, 18), width=1)
+        draw.rectangle((0, 0, max(14, width // 90), height), fill=(191, 82, 38, 255))
+        return image
+
+    @staticmethod
+    def _wrap(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont, max_width: int) -> list[str] | None:
+        words = text.strip().split()
+        if not words:
+            return None
+        lines: list[str] = []
+        current = ""
         for word in words:
-            current_line.append(word)
-            test_line = " ".join(current_line)
-            bbox = tmp_draw.textbbox((0, 0), test_line, font=font)
-            if bbox[2] - bbox[0] > max_text_width:
-                current_line.pop()
-                if current_line:
-                    lines.append(" ".join(current_line))
-                current_line = [word]
-        if current_line:
-            lines.append(" ".join(current_line))
-        
-        if not lines:
-            lines = [text_upper]
-            
-        # 6. Calculate line metrics
-        line_spacing = int(FONT_SIZE * 0.25)
-        line_metrics = []
-        for line in lines:
-            bbox = tmp_draw.textbbox((0, 0), line, font=font)
-            w = bbox[2] - bbox[0]
-            h = bbox[3] - bbox[1]
-            line_metrics.append((w, h))
-        
-        total_text_height = sum(h for _, h in line_metrics) + line_spacing * (len(lines) - 1)
-        
-        # 7. Draw text centered on canvas
-        draw = ImageDraw.Draw(img)
-        y = (height - total_text_height) // 2
-        
-        shadow_offset = 4
-        for i, line in enumerate(lines):
-            lw, lh = line_metrics[i]
-            x = (width - lw) // 2
-            
-            # Subtle drop shadow
-            draw.text((x + shadow_offset, y + shadow_offset), line, font=font, fill=(0, 0, 0, 200))
-            # Main text — warm cream (#f8f4f0)
-            draw.text((x, y), line, font=font, fill=(248, 244, 240, 255))
-            
-            y += lh + line_spacing
-            
-        # 8. Export as PNG
-        img = img.convert("RGB")
+            if draw.textbbox((0, 0), word, font=font)[2] > max_width:
+                return None
+            candidate = f"{current} {word}".strip()
+            if draw.textbbox((0, 0), candidate, font=font)[2] <= max_width:
+                current = candidate
+            else:
+                lines.append(current)
+                current = word
+        lines.append(current)
+        return lines
+
+    def _fit_text(self, draw: ImageDraw.ImageDraw, headline: str, zone: dict[str, int], minimum: int, maximum: int):
+        for size in range(maximum, minimum - 1, -2):
+            font = ImageFont.truetype(self.font_path, size)
+            lines = self._wrap(draw, headline, font, zone["width"])
+            if not lines:
+                continue
+            spacing = max(8, int(size * .22))
+            boxes = [draw.textbbox((0, 0), line, font=font) for line in lines]
+            heights = [box[3] - box[1] for box in boxes]
+            total = sum(heights) + spacing * (len(lines) - 1)
+            if total <= zone["height"]:
+                return font, lines, boxes, total, spacing
+        raise ValueError("headline_does_not_fit")
+
+    @staticmethod
+    def _draw_mark(draw: ImageDraw.ImageDraw, width: int, height: int, editorial: bool):
+        x, y = int(width * .075), int(height * .065)
+        unit = max(18, int(width * .022))
+        primary = (125, 41, 53, 255) if editorial else (255, 247, 237, 255)
+        accent = (255, 107, 0, 255)
+        draw.polygon([(x, y + unit), (x + unit, y - unit), (x + 2 * unit, y + unit)], fill=accent)
+        draw.polygon([(x + unit, y + unit), (x + 2.5 * unit, y - 2 * unit), (x + 4 * unit, y + unit)], fill=primary)
+
+    def render(self, payload: Any) -> bytes:
+        size = FORMATS[payload.output_format]
+        width, height = size
+        zone = payload.safe_zone.model_dump()
+        if zone["x"] + zone["width"] > width or zone["y"] + zone["height"] > height:
+            raise ValueError("safe_zone_out_of_bounds")
+        if payload.min_font_size > payload.max_font_size:
+            raise ValueError("invalid_font_range")
+
+        if payload.layout == "image_overlay":
+            if payload.source_url is None:
+                raise ValueError("source_image_required")
+            image = self._download_source(str(payload.source_url), size)
+            overlay = Image.new("RGBA", size, (0, 0, 0, 0))
+            ImageDraw.Draw(overlay).rectangle((zone["x"], zone["y"], zone["x"] + zone["width"], zone["y"] + zone["height"]), fill=(*_hex_color(payload.overlay_color), int(payload.overlay_opacity * 255)))
+            image = Image.alpha_composite(image, overlay)
+        else:
+            image = self._editorial_canvas(size)
+
+        draw = ImageDraw.Draw(image)
+        font, lines, boxes, total_height, spacing = self._fit_text(draw, payload.headline, zone, payload.min_font_size, payload.max_font_size)
+        y = zone["y"] if payload.vertical_align == "top" else zone["y"] + zone["height"] - total_height if payload.vertical_align == "bottom" else zone["y"] + (zone["height"] - total_height) // 2
+        color = (*_hex_color(payload.text_color), 255)
+        for line, box in zip(lines, boxes):
+            line_width, line_height = box[2] - box[0], box[3] - box[1]
+            x = zone["x"] if payload.text_align == "left" else zone["x"] + (zone["width"] - line_width) // 2
+            draw.text((x, y - box[1]), line, font=font, fill=color)
+            y += line_height + spacing
+        if payload.logo_enabled:
+            self._draw_mark(draw, width, height, payload.layout == "editorial")
         output = io.BytesIO()
-        img.save(output, format="PNG", quality=95)
+        image.convert("RGB").save(output, format="PNG", optimize=True)
         return output.getvalue()
-        
-    async def process_and_upload(self, company_id: str, base_image_url: str, overlay_text: str) -> str:
-        """Processes the image and uploads to Supabase generated-media bucket"""
-        image_bytes = await self.create_overlay_image(base_image_url, overlay_text)
-        
-        filename = f"{company_id}/{uuid.uuid4()}.png"
-        db = DatabaseService()
-        public_url = await db.upload_to_storage("generated-media", filename, image_bytes)
-        
-        return public_url
+
+    @staticmethod
+    def upload(destination_url: str, image_bytes: bytes) -> None:
+        response = requests.put(destination_url, data=image_bytes, headers={"Content-Type": "image/png", "x-upsert": "true"}, timeout=20, allow_redirects=False)
+        response.raise_for_status()
+
+    async def render_and_upload(self, payload: Any) -> dict[str, Any]:
+        image_bytes = self.render(payload)
+        self.upload(str(payload.destination_upload_url), image_bytes)
+        width, height = FORMATS[payload.output_format]
+        return {"output_path": payload.output_path, "width": width, "height": height, "mime_type": "image/png", "sha256": hashlib.sha256(image_bytes).hexdigest()}

@@ -13,7 +13,17 @@ from pydantic import ValidationError
 
 from app.main import app
 from app.scheduler.tasks import scheduler
-from app.schemas.domain import ManualGenerateRequest, OverlayGenerateRequest
+from app.schemas.domain import ManualGenerateRequest, OverlayGenerateRequest, RenderOverlayRequest
+
+RENDER_PAYLOAD = {
+    "layout": "editorial", "output_format": "instagram_portrait",
+    "destination_upload_url": "https://example.supabase.co/storage/v1/upload/sign/generated-media/test.png?token=signed",
+    "output_path": "campaign/test.png", "headline": "Automatizar sin perder control",
+    "safe_zone": {"x": 80, "y": 250, "width": 920, "height": 720},
+    "text_align": "left", "vertical_align": "center", "overlay_color": "#3B2A1E",
+    "overlay_opacity": 0, "text_color": "#181410", "min_font_size": 48,
+    "max_font_size": 104, "logo_enabled": True,
+}
 
 
 class WorkerSecurityTests(unittest.TestCase):
@@ -49,17 +59,18 @@ class WorkerSecurityTests(unittest.TestCase):
 
     def test_mutations_are_disabled(self):
         response = self.client.post(
-            "/api/v1/generate/manual",
-            headers={**self.headers, "Idempotency-Key": "phase-0-test"},
-            json={"topic": "A concrete B2B workflow", "platforms": ["linkedin"]},
+            "/api/v1/render/overlay",
+            headers={**self.headers, "Idempotency-Key": "phase-2-render-test"},
+            json=RENDER_PAYLOAD,
         )
         self.assertEqual(response.status_code, 503)
         self.assertEqual(response.json()["error"]["code"], "mutations_disabled")
 
     def test_company_query_override_is_rejected(self):
-        response = self.client.get(
-            "/api/v1/generate/drafts?company_id=00000000-0000-0000-0000-000000000000",
+        response = self.client.post(
+            "/api/v1/render/overlay?company_id=00000000-0000-0000-0000-000000000000",
             headers=self.headers,
+            json=RENDER_PAYLOAD,
         )
         self.assertEqual(response.status_code, 422)
 
@@ -73,6 +84,13 @@ class WorkerSecurityTests(unittest.TestCase):
                     "image_model": "flux",
                 }
             )
+        with self.assertRaises(ValidationError):
+            RenderOverlayRequest.model_validate({**RENDER_PAYLOAD, "company_id": "puna"})
+
+    def test_old_mutations_are_unmounted(self):
+        self.assertEqual(self.client.post("/api/v1/generate/manual", headers=self.headers, json={}).status_code, 404)
+        self.assertEqual(self.client.get("/api/v1/profiles", headers=self.headers).status_code, 404)
+        self.assertEqual(self.client.get("/api/v1/brand-library", headers=self.headers).status_code, 404)
         with self.assertRaises(ValidationError):
             OverlayGenerateRequest.model_validate(
                 {

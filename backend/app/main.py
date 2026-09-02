@@ -7,9 +7,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from app.api.brand_library import router as brand_library_router
-from app.api.generation import router as generation_router
-from app.api.profiles import router as profiles_router
+from app.api.render import router as render_router
 from app.core.config import settings
 from app.core.security import reject_tenant_override, require_worker_auth
 from app.scheduler.tasks import scheduler
@@ -107,9 +105,7 @@ async def handle_unexpected_error(request: Request, exc: Exception):
 
 
 internal_dependencies = [Depends(require_worker_auth), Depends(reject_tenant_override)]
-app.include_router(generation_router, dependencies=internal_dependencies)
-app.include_router(profiles_router, dependencies=internal_dependencies)
-app.include_router(brand_library_router, dependencies=internal_dependencies)
+app.include_router(render_router, dependencies=internal_dependencies)
 
 
 @app.get("/health", tags=["Health"])
@@ -123,7 +119,7 @@ async def capabilities():
         "service": "puna-content-worker",
         "version": "1",
         "mutations_enabled": settings.AUTOPOST_MUTATIONS_ENABLED,
-        "capabilities": ["text_generation", "brand_overlay", "brand_library"],
+        "capabilities": ["brand_overlay"],
     }
 
 
