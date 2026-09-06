@@ -92,7 +92,8 @@ class RenderOverlayRequest(StrictModel):
     output_format: Literal["instagram_portrait", "linkedin_square", "linkedin_horizontal", "x_horizontal"]
     source_url: Optional[HttpUrl] = None
     destination_upload_url: HttpUrl
-    output_path: str = Field(min_length=1, max_length=500, pattern=r"^[A-Za-z0-9][A-Za-z0-9._/-]*\.png$")
+    output_path: str = Field(min_length=1, max_length=500, pattern=r"^[A-Za-z0-9][A-Za-z0-9._/-]*\.(png|jpg|jpeg)$")
+    output_mime: Literal["image/png", "image/jpeg"] = "image/png"
     headline: str = Field(min_length=1, max_length=120)
     safe_zone: SafeZone
     text_align: Literal["left", "center"]
@@ -116,5 +117,5 @@ class RenderOverlayResponse(StrictModel):
     output_path: str
     width: int
     height: int
-    mime_type: Literal["image/png"]
+    mime_type: Literal["image/png", "image/jpeg"]
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")

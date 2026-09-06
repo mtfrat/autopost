@@ -37,6 +37,14 @@ class RendererTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "headline_does_not_fit"):
             editor.render(payload)
 
+    def test_instagram_output_is_a_real_jpeg(self):
+        editor = ImageEditorService()
+        payload = RenderOverlayRequest.model_validate({**RENDER_PAYLOAD, "output_path": "campaign/test.jpg", "output_mime": "image/jpeg"})
+        rendered = editor.render(payload)
+        image = Image.open(io.BytesIO(rendered))
+        self.assertEqual(image.format, "JPEG")
+        self.assertEqual(image.size, FORMATS["instagram_portrait"])
+
 
 if __name__ == "__main__":
     unittest.main()

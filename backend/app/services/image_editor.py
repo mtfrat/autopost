@@ -127,16 +127,19 @@ class ImageEditorService:
         if payload.logo_enabled:
             self._draw_mark(draw, width, height, payload.layout == "editorial")
         output = io.BytesIO()
-        image.convert("RGB").save(output, format="PNG", optimize=True)
+        if payload.output_mime == "image/jpeg":
+            image.convert("RGB").save(output, format="JPEG", quality=92, optimize=True, progressive=True)
+        else:
+            image.convert("RGB").save(output, format="PNG", optimize=True)
         return output.getvalue()
 
     @staticmethod
-    def upload(destination_url: str, image_bytes: bytes) -> None:
-        response = requests.put(destination_url, data=image_bytes, headers={"Content-Type": "image/png", "x-upsert": "true"}, timeout=20, allow_redirects=False)
+    def upload(destination_url: str, image_bytes: bytes, mime_type: str) -> None:
+        response = requests.put(destination_url, data=image_bytes, headers={"Content-Type": mime_type, "x-upsert": "true"}, timeout=20, allow_redirects=False)
         response.raise_for_status()
 
     async def render_and_upload(self, payload: Any) -> dict[str, Any]:
         image_bytes = self.render(payload)
-        self.upload(str(payload.destination_upload_url), image_bytes)
+        self.upload(str(payload.destination_upload_url), image_bytes, payload.output_mime)
         width, height = FORMATS[payload.output_format]
-        return {"output_path": payload.output_path, "width": width, "height": height, "mime_type": "image/png", "sha256": hashlib.sha256(image_bytes).hexdigest()}
+        return {"output_path": payload.output_path, "width": width, "height": height, "mime_type": payload.output_mime, "sha256": hashlib.sha256(image_bytes).hexdigest()}

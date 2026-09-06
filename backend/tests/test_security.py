@@ -25,6 +25,8 @@ RENDER_PAYLOAD = {
     "max_font_size": 104, "logo_enabled": True,
 }
 
+JPEG_RENDER_PAYLOAD = {**RENDER_PAYLOAD, "destination_upload_url": "https://example.supabase.co/storage/v1/upload/sign/generated-media/test.jpg?token=signed", "output_path": "campaign/test.jpg", "output_mime": "image/jpeg"}
+
 
 class WorkerSecurityTests(unittest.TestCase):
     def setUp(self):
@@ -86,6 +88,10 @@ class WorkerSecurityTests(unittest.TestCase):
             )
         with self.assertRaises(ValidationError):
             RenderOverlayRequest.model_validate({**RENDER_PAYLOAD, "company_id": "puna"})
+
+    def test_instagram_jpeg_contract(self):
+        payload = RenderOverlayRequest.model_validate(JPEG_RENDER_PAYLOAD)
+        self.assertEqual(payload.output_mime, "image/jpeg")
 
     def test_old_mutations_are_unmounted(self):
         self.assertEqual(self.client.post("/api/v1/generate/manual", headers=self.headers, json={}).status_code, 404)
