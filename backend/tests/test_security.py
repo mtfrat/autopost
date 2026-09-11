@@ -14,6 +14,7 @@ from pydantic import ValidationError
 from app.main import app
 from app.scheduler.tasks import scheduler
 from app.schemas.domain import ManualGenerateRequest, OverlayGenerateRequest, RenderOverlayRequest
+from app.core.security import require_allowed_image_url
 
 RENDER_PAYLOAD = {
     "layout": "editorial", "output_format": "instagram_portrait",
@@ -67,6 +68,20 @@ class WorkerSecurityTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 503)
         self.assertEqual(response.json()["error"]["code"], "mutations_disabled")
+        document = self.client.post(
+            "/api/v1/render/document",
+            headers={**self.headers, "Idempotency-Key": "phase-6-document-test"},
+            json={
+                "source_urls": [
+                    "https://example.supabase.co/storage/a.jpg",
+                    "https://example.supabase.co/storage/b.jpg",
+                    "https://example.supabase.co/storage/c.jpg",
+                ],
+                "destination_upload_url": "https://example.supabase.co/storage/out.pdf",
+                "output_path": "campaign/out.pdf",
+            },
+        )
+        self.assertEqual(document.status_code, 503)
 
     def test_company_query_override_is_rejected(self):
         response = self.client.post(
@@ -120,6 +135,11 @@ class WorkerSecurityTests(unittest.TestCase):
 
     def test_scheduler_is_disabled_by_default(self):
         self.assertFalse(scheduler.running)
+
+    def test_renderer_ssrf_allowlist_rejects_external_hosts(self):
+        with self.assertRaises(Exception):
+            require_allowed_image_url("https://127.0.0.1/private.png")
+        self.assertEqual(require_allowed_image_url("https://example.supabase.co/storage/image.png"), "https://example.supabase.co/storage/image.png")
 
 
 if __name__ == "__main__":

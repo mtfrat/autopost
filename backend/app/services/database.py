@@ -214,8 +214,8 @@ class DatabaseService:
     async def complete_render(self, run_id: str, result: Dict[str, Any]) -> None:
         self._check_client()
         self.client.table("worker_render_runs").update({
-            "status": "succeeded", "output_path": result["output_path"], "width": result["width"],
-            "height": result["height"], "mime_type": result["mime_type"], "sha256": result["sha256"],
+            "status": "succeeded", "output_path": result["output_path"], "width": result.get("width"),
+            "height": result.get("height"), "page_count": result.get("page_count"), "mime_type": result["mime_type"], "sha256": result["sha256"],
             "error_code": None, "completed_at": datetime.now(timezone.utc).isoformat(),
         }).eq("id", run_id).execute()
 

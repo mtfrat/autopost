@@ -119,7 +119,7 @@ async def capabilities():
         "service": "puna-content-worker",
         "version": "1",
         "mutations_enabled": settings.AUTOPOST_MUTATIONS_ENABLED,
-        "capabilities": ["brand_overlay"],
+        "capabilities": ["brand_overlay", "carousel_document"],
     }
 
 
