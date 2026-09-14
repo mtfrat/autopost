@@ -82,9 +82,9 @@ class BrandImageCreate(StrictModel):
 
 class SafeZone(StrictModel):
     x: int = Field(ge=0, le=1600)
-    y: int = Field(ge=0, le=1350)
+    y: int = Field(ge=0, le=1920)
     width: int = Field(ge=200, le=1600)
-    height: int = Field(ge=120, le=1350)
+    height: int = Field(ge=120, le=1920)
 
 
 class FocalPoint(StrictModel):
@@ -96,7 +96,7 @@ class RenderOverlayRequest(StrictModel):
     layout: Literal["editorial", "image_overlay", "metric", "framework"]
     composition_kind: Literal["single", "carousel_slide"] = "single"
     slide_role: Optional[Literal["cover", "content", "cta"]] = None
-    output_format: Literal["instagram_portrait", "linkedin_square", "linkedin_horizontal", "x_horizontal"]
+    output_format: Literal["instagram_portrait", "instagram_reel_cover", "linkedin_square", "linkedin_horizontal", "x_horizontal"]
     source_url: Optional[HttpUrl] = None
     destination_upload_url: HttpUrl
     output_path: str = Field(min_length=1, max_length=500, pattern=r"^[A-Za-z0-9][A-Za-z0-9._/-]*\.(png|jpg|jpeg)$")
@@ -153,6 +153,8 @@ class RenderOverlayRequest(StrictModel):
             raise ValueError("Instagram carousel slides require JPEG")
         if carousel and self.output_format.startswith("linkedin_") and self.output_mime != "image/png":
             raise ValueError("LinkedIn carousel slides require PNG")
+        if self.output_format == "instagram_reel_cover" and self.output_mime != "image/jpeg":
+            raise ValueError("Instagram reel covers require JPEG")
         if self.emphasis and self.layout != "metric":
             raise ValueError("emphasis requires metric layout")
         return self

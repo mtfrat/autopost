@@ -11,6 +11,7 @@ from app.services.image_editor import FORMATS, ImageEditorService
 
 SAFE_ZONES = {
     "instagram_portrait": {"x": 80, "y": 250, "width": 920, "height": 720},
+    "instagram_reel_cover": {"x": 90, "y": 360, "width": 900, "height": 1050},
     "linkedin_square": {"x": 80, "y": 210, "width": 920, "height": 560},
     "linkedin_horizontal": {"x": 88, "y": 180, "width": 820, "height": 300},
     "x_horizontal": {"x": 112, "y": 260, "width": 1080, "height": 410},
@@ -21,7 +22,14 @@ class RendererTests(unittest.TestCase):
     def test_editorial_formats_are_exact_and_deterministic(self):
         editor = ImageEditorService()
         for output_format, dimensions in FORMATS.items():
-            payload = RenderOverlayRequest.model_validate({**RENDER_PAYLOAD, "output_format": output_format, "safe_zone": SAFE_ZONES[output_format]})
+            is_reel_cover = output_format == "instagram_reel_cover"
+            payload = RenderOverlayRequest.model_validate({
+                **RENDER_PAYLOAD,
+                "output_format": output_format,
+                "safe_zone": SAFE_ZONES[output_format],
+                "output_mime": "image/jpeg" if is_reel_cover else "image/png",
+                "output_path": "campaign/reel-cover.jpg" if is_reel_cover else "campaign/test.png",
+            })
             first = editor.render(payload)
             second = editor.render(payload)
             self.assertEqual(first, second)
@@ -46,6 +54,20 @@ class RendererTests(unittest.TestCase):
         image = Image.open(io.BytesIO(rendered))
         self.assertEqual(image.format, "JPEG")
         self.assertEqual(image.size, FORMATS["instagram_portrait"])
+
+    def test_instagram_reel_cover_is_vertical_jpeg(self):
+        editor = ImageEditorService()
+        payload = RenderOverlayRequest.model_validate({
+            **RENDER_PAYLOAD,
+            "output_format": "instagram_reel_cover",
+            "safe_zone": SAFE_ZONES["instagram_reel_cover"],
+            "output_path": "campaign/reel-cover.jpg",
+            "output_mime": "image/jpeg",
+        })
+        rendered = editor.render(payload)
+        image = Image.open(io.BytesIO(rendered))
+        self.assertEqual(image.format, "JPEG")
+        self.assertEqual(image.size, (1080, 1920))
 
     def test_carousel_slide_supports_structured_content(self):
         editor = ImageEditorService()

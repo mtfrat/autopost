@@ -11,6 +11,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 FORMATS = {
     "instagram_portrait": (1080, 1350),
+    "instagram_reel_cover": (1080, 1920),
     "linkedin_square": (1080, 1080),
     "linkedin_horizontal": (1200, 627),
     "x_horizontal": (1600, 900),
