@@ -26,7 +26,9 @@ def _hex_color(value: str) -> tuple[int, int, int]:
 
 class ImageEditorService:
     def __init__(self):
-        self.font_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "fonts", "Geist-Bold.ttf")
+        fonts = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "fonts")
+        self.font_path = os.path.join(fonts, "Geist-Bold.ttf")
+        self.headline_font_path = os.path.join(fonts, "Newsreader.ttf")
 
     def _download_bytes(self, source_url: str) -> bytes:
         response = requests.get(source_url, timeout=15, stream=True, allow_redirects=False)
@@ -50,12 +52,26 @@ class ImageEditorService:
         width, height = size
         image = Image.new("RGBA", size, (247, 239, 226, 255))
         draw = ImageDraw.Draw(image)
-        grid = max(28, width // 28)
-        for x in range(0, width, grid):
-            draw.line((x, 0, x, height), fill=(125, 41, 53, 18), width=1)
+        grid = max(32, width // 24)
+        margin = int(width * .075)
+        for x in range(0, margin + 1, grid):
+            draw.line((x, 0, x, height), fill=(125, 41, 53, 13), width=1)
+            draw.line((width - x, 0, width - x, height), fill=(125, 41, 53, 13), width=1)
         for y in range(0, height, grid):
-            draw.line((0, y, width, y), fill=(125, 41, 53, 18), width=1)
+            draw.line((0, y, margin, y), fill=(125, 41, 53, 13), width=1)
+            draw.line((width - margin, y, width, y), fill=(125, 41, 53, 13), width=1)
         draw.rectangle((0, 0, max(14, width // 90), height), fill=(191, 82, 38, 255))
+        return image
+
+    @staticmethod
+    def _reel_canvas(size: tuple[int, int]) -> Image.Image:
+        width, height = size
+        image = Image.new("RGBA", size, (24, 20, 16, 255))
+        draw = ImageDraw.Draw(image)
+        for y in range(height):
+            progress = y / max(1, height - 1)
+            draw.line((0, y, width, y), fill=(int(24 + 101 * progress), int(20 + 21 * progress), int(16 + 37 * progress), 255))
+        draw.rectangle((0, int(height * .84), width, height), fill=(191, 82, 38, 255))
         return image
 
     @staticmethod
@@ -77,9 +93,9 @@ class ImageEditorService:
         lines.append(current)
         return lines
 
-    def _fit_text(self, draw: ImageDraw.ImageDraw, headline: str, zone: dict[str, int], minimum: int, maximum: int):
+    def _fit_text(self, draw: ImageDraw.ImageDraw, headline: str, zone: dict[str, int], minimum: int, maximum: int, font_path: str | None = None):
         for size in range(maximum, minimum - 1, -2):
-            font = ImageFont.truetype(self.font_path, size)
+            font = ImageFont.truetype(font_path or self.headline_font_path, size)
             lines = self._wrap(draw, headline, font, zone["width"])
             if not lines:
                 continue
@@ -115,13 +131,52 @@ class ImageEditorService:
         return y
 
     @staticmethod
-    def _draw_mark(draw: ImageDraw.ImageDraw, width: int, height: int, editorial: bool):
+    def _contrast_ratio(left: tuple[int, int, int], right: tuple[int, int, int]) -> float:
+        def luminance(color):
+            values = [channel / 255 for channel in color]
+            values = [value / 12.92 if value <= .04045 else ((value + .055) / 1.055) ** 2.4 for value in values]
+            return .2126 * values[0] + .7152 * values[1] + .0722 * values[2]
+        bright, dark = sorted((luminance(left), luminance(right)), reverse=True)
+        return (bright + .05) / (dark + .05)
+
+    def _draw_mark(self, draw: ImageDraw.ImageDraw, width: int, height: int, editorial: bool):
         x, y = int(width * .075), int(height * .065)
         unit = max(18, int(width * .022))
         primary = (125, 41, 53, 255) if editorial else (255, 247, 237, 255)
         accent = (255, 107, 0, 255)
         draw.polygon([(x, y + unit), (x + unit, y - unit), (x + 2 * unit, y + unit)], fill=accent)
         draw.polygon([(x + unit, y + unit), (x + 2.5 * unit, y - 2 * unit), (x + 4 * unit, y + unit)], fill=primary)
+        label_font = ImageFont.truetype(self.font_path, max(22, int(width * .023)))
+        meta_font = ImageFont.truetype(self.font_path, max(16, int(width * .014)))
+        text_x = x + int(unit * 4.7)
+        draw.text((text_x, y - unit * 1.15), "Puna Tech", font=label_font, fill=primary)
+        draw.text((text_x, y + unit * .35), "puna-tech.com", font=meta_font, fill=primary)
+
+    def _draw_framework(self, draw: ImageDraw.ImageDraw, payload: Any, zone: dict[str, int], start_y: int, color: tuple[int, int, int, int]) -> int:
+        blocks = ([payload.body] if payload.body else []) + list(payload.bullets)
+        if not blocks:
+            return start_y
+        font = ImageFont.truetype(self.font_path, max(24, min(38, payload.min_font_size - 6)))
+        y = start_y + 20
+        number_size = max(42, int(payload.min_font_size * .9))
+        number_font = ImageFont.truetype(self.font_path, number_size)
+        for index, block in enumerate(blocks, 1):
+            lines = self._wrap(draw, block, font, zone["width"] - 96)
+            if not lines:
+                raise ValueError("supporting_text_does_not_fit")
+            line_height = max(draw.textbbox((0, 0), line, font=font)[3] for line in lines)
+            block_height = max(72, len(lines) * (line_height + 8) + 24)
+            if y + block_height > zone["y"] + zone["height"]:
+                raise ValueError("supporting_text_does_not_fit")
+            draw.rounded_rectangle((zone["x"], y, zone["x"] + zone["width"], y + block_height), radius=12, fill=(125, 41, 53, 18), outline=(125, 41, 53, 70), width=2)
+            draw.text((zone["x"] + 20, y + 12), f"{index:02d}", font=number_font, fill=(191, 82, 38, 255))
+            text_y = y + 15
+            for line in lines:
+                box = draw.textbbox((0, 0), line, font=font)
+                draw.text((zone["x"] + 90, text_y - box[1]), line, font=font, fill=color)
+                text_y += line_height + 8
+            y += block_height + 14
+        return y
 
     def render(self, payload: Any) -> bytes:
         size = FORMATS[payload.output_format]
@@ -139,13 +194,25 @@ class ImageEditorService:
             centering = (focal.x, focal.y) if focal else (.5, .5)
             image = self._download_source(str(payload.source_url), size, centering)
             overlay = Image.new("RGBA", size, (0, 0, 0, 0))
-            ImageDraw.Draw(overlay).rectangle((zone["x"], zone["y"], zone["x"] + zone["width"], zone["y"] + zone["height"]), fill=(*_hex_color(payload.overlay_color), int(payload.overlay_opacity * 255)))
+            overlay_draw = ImageDraw.Draw(overlay)
+            overlay_rgb = _hex_color(payload.overlay_color)
+            for y in range(height):
+                progress = y / max(1, height - 1)
+                alpha = int(255 * min(.92, payload.overlay_opacity * (.35 + .9 * progress)))
+                if zone["y"] <= y <= zone["y"] + zone["height"]:
+                    alpha = max(alpha, int(255 * .72))
+                overlay_draw.line((0, y, width, y), fill=(*overlay_rgb, alpha))
             image = Image.alpha_composite(image, overlay)
+        elif payload.output_format == "instagram_reel_cover":
+            image = self._reel_canvas(size)
         else:
             image = self._editorial_canvas(size)
 
         draw = ImageDraw.Draw(image)
         color = (*_hex_color(payload.text_color), 255)
+        contrast_background = _hex_color(payload.overlay_color) if payload.layout == "image_overlay" else ((24, 20, 16) if payload.output_format == "instagram_reel_cover" else (247, 239, 226))
+        if self._contrast_ratio(color[:3], contrast_background) < 4.5:
+            raise ValueError("insufficient_contrast")
         if payload.eyebrow:
             eyebrow_font = ImageFont.truetype(self.font_path, max(22, payload.min_font_size // 2))
             draw.text((zone["x"], zone["y"]), payload.eyebrow.upper(), font=eyebrow_font, fill=color)
@@ -161,21 +228,25 @@ class ImageEditorService:
         has_support = bool(payload.body or payload.bullets)
         headline_zone = {**zone, "height": int(zone["height"] * (.48 if has_support else 1))}
         headline_max = min(payload.max_font_size, 82) if has_support else payload.max_font_size
-        font, lines, boxes, total_height, spacing = self._fit_text(draw, payload.headline, headline_zone, payload.min_font_size, headline_max)
+        headline_font_path = self.font_path if payload.layout in {"metric", "framework"} else self.headline_font_path
+        font, lines, boxes, total_height, spacing = self._fit_text(draw, payload.headline, headline_zone, payload.min_font_size, headline_max, headline_font_path)
         y = zone["y"] if has_support or payload.vertical_align == "top" else zone["y"] + zone["height"] - total_height if payload.vertical_align == "bottom" else zone["y"] + (zone["height"] - total_height) // 2
         for line, box in zip(lines, boxes):
             line_width, line_height = box[2] - box[0], box[3] - box[1]
             x = zone["x"] if payload.text_align == "left" else zone["x"] + (zone["width"] - line_width) // 2
             draw.text((x, y - box[1]), line, font=font, fill=color)
             y += line_height + spacing
-        self._draw_supporting_text(draw, payload, zone, y, color)
+        if payload.layout == "framework":
+            self._draw_framework(draw, payload, zone, y, color)
+        else:
+            self._draw_supporting_text(draw, payload, zone, y, color)
         if payload.composition_kind == "carousel_slide" and payload.slide_number and payload.slide_count:
             counter_font = ImageFont.truetype(self.font_path, max(20, payload.min_font_size // 2))
             counter = f"{payload.slide_number:02d} / {payload.slide_count:02d}"
             box = draw.textbbox((0, 0), counter, font=counter_font)
             draw.text((width - int(width * .075) - (box[2] - box[0]), height - int(height * .065)), counter, font=counter_font, fill=color)
         if payload.logo_enabled:
-            self._draw_mark(draw, width, height, payload.layout != "image_overlay")
+            self._draw_mark(draw, width, height, payload.layout != "image_overlay" and payload.output_format != "instagram_reel_cover")
         output = io.BytesIO()
         if payload.output_mime == "image/jpeg":
             image.convert("RGB").save(output, format="JPEG", quality=92, optimize=True, progressive=True)

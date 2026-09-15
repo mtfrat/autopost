@@ -1,4 +1,6 @@
 import io
+import hashlib
+import os
 import unittest
 from unittest.mock import patch
 
@@ -29,6 +31,7 @@ class RendererTests(unittest.TestCase):
                 "safe_zone": SAFE_ZONES[output_format],
                 "output_mime": "image/jpeg" if is_reel_cover else "image/png",
                 "output_path": "campaign/reel-cover.jpg" if is_reel_cover else "campaign/test.png",
+                "text_color": "#FFF7ED" if is_reel_cover else "#181410",
             })
             first = editor.render(payload)
             second = editor.render(payload)
@@ -63,6 +66,7 @@ class RendererTests(unittest.TestCase):
             "safe_zone": SAFE_ZONES["instagram_reel_cover"],
             "output_path": "campaign/reel-cover.jpg",
             "output_mime": "image/jpeg",
+            "text_color": "#FFF7ED",
         })
         rendered = editor.render(payload)
         image = Image.open(io.BytesIO(rendered))
@@ -137,10 +141,43 @@ class RendererTests(unittest.TestCase):
             "layout": "image_overlay",
             "source_url": "https://example.supabase.co/source.jpg",
             "focal_point": {"x": .2, "y": .8},
+            "text_color": "#FFF7ED",
+            "overlay_opacity": .72,
         })
         with patch.object(editor, "_download_source", return_value=Image.new("RGBA", FORMATS["instagram_portrait"], "#181410")) as download:
             editor.render(payload)
         self.assertEqual(download.call_args.args[2], (.2, .8))
+
+    def test_four_layouts_have_distinct_compositions(self):
+        editor = ImageEditorService()
+        base = {**RENDER_PAYLOAD, "body": "Una explicación breve.", "bullets": []}
+        image = Image.new("RGB", FORMATS["instagram_portrait"], "#796a5e")
+        layouts = {}
+        with patch.object(editor, "_download_source", return_value=image.convert("RGBA")):
+            for layout in ("editorial", "metric", "framework", "image_overlay"):
+                payload = RenderOverlayRequest.model_validate({
+                    **base,
+                    "layout": layout,
+                    "source_url": "https://example.supabase.co/source.jpg" if layout == "image_overlay" else None,
+                    "text_color": "#FFF7ED" if layout == "image_overlay" else "#181410",
+                    "overlay_opacity": .72 if layout == "image_overlay" else 0,
+                    "emphasis": "30%" if layout == "metric" else None,
+                    "bullets": ["Definir responsables", "Registrar excepciones"] if layout == "framework" else [],
+                })
+                layouts[layout] = hashlib.sha256(editor.render(payload)).hexdigest()
+        self.assertEqual(len(set(layouts.values())), 4)
+
+    def test_low_contrast_is_rejected(self):
+        editor = ImageEditorService()
+        payload = RenderOverlayRequest.model_validate({**RENDER_PAYLOAD, "text_color": "#F7EFE2"})
+        with self.assertRaisesRegex(ValueError, "insufficient_contrast"):
+            editor.render(payload)
+
+    def test_brand_fonts_and_license_are_packaged(self):
+        editor = ImageEditorService()
+        self.assertTrue(os.path.exists(editor.headline_font_path))
+        license_path = os.path.join(os.path.dirname(editor.headline_font_path), "NEWSREADER-LICENSE.txt")
+        self.assertTrue(os.path.exists(license_path))
 
     def test_document_hash_ignores_signed_tokens_but_keeps_page_order(self):
         common = {
