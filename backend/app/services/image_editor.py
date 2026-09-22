@@ -156,26 +156,43 @@ class ImageEditorService:
         blocks = ([payload.body] if payload.body else []) + list(payload.bullets)
         if not blocks:
             return start_y
-        font = ImageFont.truetype(self.font_path, max(24, min(38, payload.min_font_size - 6)))
-        y = start_y + 20
-        number_size = max(42, int(payload.min_font_size * .9))
-        number_font = ImageFont.truetype(self.font_path, number_size)
-        for index, block in enumerate(blocks, 1):
-            lines = self._wrap(draw, block, font, zone["width"] - 96)
-            if not lines:
-                raise ValueError("supporting_text_does_not_fit")
-            line_height = max(draw.textbbox((0, 0), line, font=font)[3] for line in lines)
-            block_height = max(72, len(lines) * (line_height + 8) + 24)
-            if y + block_height > zone["y"] + zone["height"]:
-                raise ValueError("supporting_text_does_not_fit")
-            draw.rounded_rectangle((zone["x"], y, zone["x"] + zone["width"], y + block_height), radius=12, fill=(125, 41, 53, 18), outline=(125, 41, 53, 70), width=2)
-            draw.text((zone["x"] + 20, y + 12), f"{index:02d}", font=number_font, fill=(191, 82, 38, 255))
-            text_y = y + 15
+        gap = 10
+        top_padding = 12
+        available_height = zone["y"] + zone["height"] - start_y - top_padding
+        layout = None
+        preferred_size = max(24, min(38, payload.min_font_size - 6))
+        for font_size in range(preferred_size, 19, -2):
+            candidate_font = ImageFont.truetype(self.font_path, font_size)
+            candidate_blocks = []
+            for block in blocks:
+                lines = self._wrap(draw, block, candidate_font, zone["width"] - 88)
+                if not lines:
+                    break
+                line_height = max(draw.textbbox((0, 0), line, font=candidate_font)[3] for line in lines)
+                block_height = max(50, len(lines) * (line_height + 6) + 18)
+                candidate_blocks.append((lines, line_height, block_height))
+            required_height = sum(item[2] for item in candidate_blocks) + gap * max(0, len(candidate_blocks) - 1)
+            if len(candidate_blocks) == len(blocks) and required_height <= available_height:
+                layout = (candidate_font, candidate_blocks)
+                break
+        if layout is None:
+            raise ValueError("supporting_text_does_not_fit")
+        font, fitted_blocks = layout
+        y = start_y + top_padding
+        number_font = ImageFont.truetype(self.font_path, max(30, font.size + 8))
+        dark_canvas = payload.output_format == "instagram_reel_cover"
+        card_fill = (75, 32, 41, 255) if dark_canvas else (242, 225, 215, 255)
+        card_outline = (191, 82, 38, 255) if dark_canvas else (125, 41, 53, 255)
+        number_color = (255, 151, 84, 255) if dark_canvas else (125, 41, 53, 255)
+        for index, (lines, line_height, block_height) in enumerate(fitted_blocks, 1):
+            draw.rounded_rectangle((zone["x"], y, zone["x"] + zone["width"], y + block_height), radius=12, fill=card_fill, outline=card_outline, width=2)
+            draw.text((zone["x"] + 18, y + 9), f"{index:02d}", font=number_font, fill=number_color)
+            text_y = y + 10
             for line in lines:
                 box = draw.textbbox((0, 0), line, font=font)
-                draw.text((zone["x"] + 90, text_y - box[1]), line, font=font, fill=color)
-                text_y += line_height + 8
-            y += block_height + 14
+                draw.text((zone["x"] + 82, text_y - box[1]), line, font=font, fill=color)
+                text_y += line_height + 6
+            y += block_height + gap
         return y
 
     def render(self, payload: Any) -> bytes:

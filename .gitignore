@@ -2,8 +2,10 @@
 backend/.env
 backend/venv/
 backend/__pycache__/
+**/__pycache__/
 backend/.pytest_cache/
 backend/app/scratch/
+output/
 
 # Next.js / Frontend
 frontend/node_modules/

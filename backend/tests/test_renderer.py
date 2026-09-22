@@ -167,6 +167,23 @@ class RendererTests(unittest.TestCase):
                 layouts[layout] = hashlib.sha256(editor.render(payload)).hexdigest()
         self.assertEqual(len(set(layouts.values())), 4)
 
+    def test_framework_fits_production_linkedin_horizontal_template(self):
+        editor = ImageEditorService()
+        payload = RenderOverlayRequest.model_validate({
+            **RENDER_PAYLOAD,
+            "layout": "framework",
+            "output_format": "linkedin_horizontal",
+            "safe_zone": {"x": 88, "y": 120, "width": 900, "height": 390},
+            "headline": "Un sistema visible para ordenar cada seguimiento comercial",
+            "eyebrow": "Puna Tech · Operaciones",
+            "body": None,
+            "bullets": ["Definir responsables", "Registrar excepciones", "Revisar resultados"],
+            "min_font_size": 32,
+            "max_font_size": 60,
+        })
+        rendered = editor.render(payload)
+        self.assertEqual(Image.open(io.BytesIO(rendered)).size, FORMATS["linkedin_horizontal"])
+
     def test_low_contrast_is_rejected(self):
         editor = ImageEditorService()
         payload = RenderOverlayRequest.model_validate({**RENDER_PAYLOAD, "text_color": "#F7EFE2"})
