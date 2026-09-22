@@ -156,8 +156,8 @@ class ImageEditorService:
         blocks = ([payload.body] if payload.body else []) + list(payload.bullets)
         if not blocks:
             return start_y
-        gap = 10
-        top_padding = 12
+        gap = 8
+        top_padding = 8
         available_height = zone["y"] + zone["height"] - start_y - top_padding
         layout = None
         preferred_size = max(24, min(38, payload.min_font_size - 6))
@@ -169,7 +169,7 @@ class ImageEditorService:
                 if not lines:
                     break
                 line_height = max(draw.textbbox((0, 0), line, font=candidate_font)[3] for line in lines)
-                block_height = max(50, len(lines) * (line_height + 6) + 18)
+                block_height = max(44, len(lines) * (line_height + 4) + 14)
                 candidate_blocks.append((lines, line_height, block_height))
             required_height = sum(item[2] for item in candidate_blocks) + gap * max(0, len(candidate_blocks) - 1)
             if len(candidate_blocks) == len(blocks) and required_height <= available_height:
@@ -187,11 +187,11 @@ class ImageEditorService:
         for index, (lines, line_height, block_height) in enumerate(fitted_blocks, 1):
             draw.rounded_rectangle((zone["x"], y, zone["x"] + zone["width"], y + block_height), radius=12, fill=card_fill, outline=card_outline, width=2)
             draw.text((zone["x"] + 18, y + 9), f"{index:02d}", font=number_font, fill=number_color)
-            text_y = y + 10
+            text_y = y + 7
             for line in lines:
                 box = draw.textbbox((0, 0), line, font=font)
                 draw.text((zone["x"] + 82, text_y - box[1]), line, font=font, fill=color)
-                text_y += line_height + 6
+                text_y += line_height + 4
             y += block_height + gap
         return y
 
@@ -245,6 +245,8 @@ class ImageEditorService:
         has_support = bool(payload.body or payload.bullets)
         headline_zone = {**zone, "height": int(zone["height"] * (.48 if has_support else 1))}
         headline_max = min(payload.max_font_size, 82) if has_support else payload.max_font_size
+        if payload.layout == "framework" and payload.output_format == "linkedin_horizontal":
+            headline_max = min(headline_max, 48)
         headline_font_path = self.font_path if payload.layout in {"metric", "framework"} else self.headline_font_path
         font, lines, boxes, total_height, spacing = self._fit_text(draw, payload.headline, headline_zone, payload.min_font_size, headline_max, headline_font_path)
         y = zone["y"] if has_support or payload.vertical_align == "top" else zone["y"] + zone["height"] - total_height if payload.vertical_align == "bottom" else zone["y"] + (zone["height"] - total_height) // 2

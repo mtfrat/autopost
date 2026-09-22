@@ -176,8 +176,8 @@ class RendererTests(unittest.TestCase):
             "safe_zone": {"x": 88, "y": 120, "width": 900, "height": 390},
             "headline": "Un sistema visible para ordenar cada seguimiento comercial",
             "eyebrow": "Puna Tech · Operaciones",
-            "body": None,
-            "bullets": ["Definir responsables", "Registrar excepciones", "Revisar resultados"],
+            "body": "Un sistema visible permite identificar el estado de cada caso, el próximo paso y el momento de intervenir.",
+            "bullets": ["Qué pasó", "Qué sigue", "Cuándo intervenir"],
             "min_font_size": 32,
             "max_font_size": 60,
         })

@@ -58,7 +58,7 @@ def payload(preset: str, output_format: str, headline: str) -> RenderOverlayRequ
             "output_mime": "image/jpeg" if is_instagram else "image/png",
             "headline": headline,
             "eyebrow": "Puna Tech · Operaciones",
-            "body": "La automatización funciona cuando responsables y excepciones quedan claros." if preset in {"editorial", "evidence"} else None,
+            "body": "La automatización funciona cuando responsables y excepciones quedan claros." if preset in {"editorial", "evidence", "system"} else None,
             "bullets": ["Definir responsables", "Registrar excepciones", "Revisar resultados"] if preset == "system" else [],
             "emphasis": "30%" if preset == "evidence" else None,
             "focal_point": {"x": 0.5, "y": 0.5} if preset == "image" else None,
